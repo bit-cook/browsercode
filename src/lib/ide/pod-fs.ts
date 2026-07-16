@@ -1,38 +1,44 @@
-import type { BinaryFile, BrowserPod, TextFile } from '@leaningtech/browserpod';
+import type { BinaryFile, BrowserPod, TextFile, Terminal } from '@leaningtech/browserpod';
 
-/** Project files live directly under the pod user's home, mirroring the template layout. */
+/** Default working directory. Curated templates hydrate here; GitHub clones live in a subdir. */
 export const POD_HOME = '/home/user';
 
-export async function readPodFile(pod: BrowserPod, path: string): Promise<string> {
-	const file = (await pod.openFile(`${POD_HOME}/${path}`, 'utf-8')) as TextFile;
+/** write() exists on the terminal at runtime but isn't in the published types. */
+export function writeToTerminal(terminal: Terminal | null, data: string): void {
+	(terminal as (Terminal & { write?: (data: string) => void }) | null)?.write?.(data);
+}
+
+export async function readPodFile(pod: BrowserPod, absPath: string): Promise<string> {
+	const file = (await pod.openFile(absPath, 'utf-8')) as TextFile;
 	const size = await file.getSize();
 	const content = await file.read(size);
 	await file.close();
 	return content;
 }
 
-export async function writePodFile(pod: BrowserPod, path: string, content: string): Promise<void> {
-	await ensureParentDirectory(pod, path);
-	const file = (await pod.createFile(`${POD_HOME}/${path}`, 'utf-8')) as TextFile;
+export async function writePodFile(
+	pod: BrowserPod,
+	absPath: string,
+	content: string
+): Promise<void> {
+	await ensureParentDirectory(pod, absPath);
+	const file = (await pod.createFile(absPath, 'utf-8')) as TextFile;
 	await file.write(content);
 	await file.close();
 }
 
 export async function writePodBinaryFile(
 	pod: BrowserPod,
-	path: string,
+	absPath: string,
 	content: ArrayBuffer
 ): Promise<void> {
-	await ensureParentDirectory(pod, path);
-	const file = (await pod.createFile(`${POD_HOME}/${path}`, 'binary')) as BinaryFile;
+	await ensureParentDirectory(pod, absPath);
+	const file = (await pod.createFile(absPath, 'binary')) as BinaryFile;
 	await file.write(content);
 	await file.close();
 }
 
-async function ensureParentDirectory(pod: BrowserPod, path: string): Promise<void> {
-	const parts = path.split('/');
-	parts.pop();
-	if (parts.length) {
-		await pod.createDirectory(`${POD_HOME}/${parts.join('/')}`, { recursive: true });
-	}
+async function ensureParentDirectory(pod: BrowserPod, absPath: string): Promise<void> {
+	const parent = absPath.slice(0, absPath.lastIndexOf('/'));
+	if (parent) await pod.createDirectory(parent, { recursive: true });
 }
