@@ -1,9 +1,14 @@
-import type { BinaryFile, BrowserPod, Terminal } from '@leaningtech/browserpod';
+import type { BinaryFile, BrowserPod } from '@leaningtech/browserpod';
 import { cliConfigs, toolItems } from '$lib/config/tools';
+import { writeToTerminal } from '$lib/ide/pod-fs';
 import { trackEvent } from './useLazyTracking';
+import type { PortalUpdate } from '$lib/stores/portals.svelte';
 
-type PortalUpdate = { port: number; url: string | null; active: boolean };
-
+/**
+ * Boots an agent tool's disk image into a pod and runs its CLI against the `#console`
+ * terminal. Portal events (and Claude's OAuth open events) stream through the callbacks
+ * configured in `cliConfigs`.
+ */
 export async function bootCLI(
 	onPortalUpdate?: (update: PortalUpdate) => void,
 	tool: keyof typeof cliConfigs = 'gemini'
@@ -62,8 +67,7 @@ export async function bootCLI(
 		await copyFile(pod, config.projectFile, homePath, filename);
 	}
 
-	// write() exists at runtime but is missing from the published Terminal types
-	(terminal as Terminal & { write: (data: string) => void }).write(`Starting ${toolLabel}...\n`);
+	writeToTerminal(terminal, `Starting ${toolLabel}...\n`);
 
 	trackEvent('Booted', { tool: toolLabel });
 

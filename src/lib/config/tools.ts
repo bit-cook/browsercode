@@ -5,13 +5,46 @@ export type ToolItem = {
 	icon: string | null;
 	label: string;
 	disabled: boolean;
+	/** Tailwind classes for the icon badge when the tool is available (ignored while disabled). */
+	accentClass: string;
+	/** Solid Tailwind background class for the small "this one is running" status dot. */
+	dotClass: string;
 };
 
 export const toolItems: ToolItem[] = [
-	{ id: 'claude', icon: 'mingcute:claude-line', label: 'Claude Code', disabled: false },
-	{ id: 'gemini', icon: 'simple-icons:googlegemini', label: 'Gemini CLI', disabled: false },
-	{ id: 'codex', icon: 'hugeicons:chat-gpt', label: 'Codex CLI', disabled: true },
-	{ id: 'opencode', icon: null, label: 'OpenCode', disabled: true }
+	{
+		id: 'claude',
+		icon: 'mingcute:claude-line',
+		label: 'Claude Code',
+		disabled: false,
+		// Original brand colors, not the app's accent palette — kept recognizable at a glance.
+		accentClass: 'bg-orange-500/10 text-orange-400',
+		dotClass: 'bg-orange-400'
+	},
+	{
+		id: 'gemini',
+		icon: 'simple-icons:googlegemini',
+		label: 'Gemini CLI',
+		disabled: false,
+		accentClass: 'bg-blue-500/10 text-blue-400',
+		dotClass: 'bg-blue-400'
+	},
+	{
+		id: 'codex',
+		icon: 'hugeicons:chat-gpt',
+		label: 'Codex CLI',
+		disabled: true,
+		accentClass: 'bg-bc-orchid/10 text-bc-orchid',
+		dotClass: 'bg-bc-orchid'
+	},
+	{
+		id: 'opencode',
+		icon: null,
+		label: 'OpenCode',
+		disabled: true,
+		accentClass: 'bg-bc-coral/10 text-bc-coral',
+		dotClass: 'bg-bc-coral'
+	}
 ];
 
 export type CLIConfig = {
@@ -29,7 +62,7 @@ export const cliConfigs: Record<string, CLIConfig> = {
 		storageKey: 'claude_20260506',
 		command: 'node',
 		args: ['/home/user/claude-extracted/src/entrypoints/cli.js'],
-		projectFile: 'project/claude/CLAUDE.md',
+		projectFile: '/project/claude/CLAUDE.md',
 		openCallback: (urlOrPath: string) => {
 			if (
 				urlOrPath.startsWith('https://claude.com/cai/oauth/authorize') ||
@@ -49,6 +82,6 @@ export const cliConfigs: Record<string, CLIConfig> = {
 		storageKey: 'gemini_20260430_2',
 		command: 'node',
 		args: ['/home/user/node_modules/@google/gemini-cli/bundle/gemini.js'],
-		projectFile: 'project/gemini/GEMINI.md'
+		projectFile: '/project/gemini/GEMINI.md'
 	}
 };
