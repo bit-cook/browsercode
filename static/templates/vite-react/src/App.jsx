@@ -2,7 +2,7 @@ import { useState } from "react";
 import reactLogo from "./assets/react.svg";
 import viteLogo from "./assets/vite.svg";
 import heroImg from "./assets/hero.png";
-import "./app.css";
+import "./App.css";
 
 function App() {
   const [count, setCount] = useState(0);
@@ -10,6 +10,12 @@ function App() {
   return (
     <>
       <section id="center">
+        <p className="bp-badge">
+          <span className="bp-dot" aria-hidden="true"></span>Served by{" "}
+          <a href="https://browserpod.io" target="_blank" rel="noreferrer">
+            BrowserPod
+          </a>
+        </p>
         <div className="hero">
           <img src={heroImg} className="base" width="170" height="179" alt="" />
           <img src={reactLogo} className="framework" alt="React logo" />

@@ -1,4 +1,3 @@
-.npmrc
 index.html
 jsconfig.json
 manifest.txt

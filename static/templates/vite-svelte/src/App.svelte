@@ -6,6 +6,10 @@
 </script>
 
 <section id="center">
+  <p class="bp-badge">
+    <span class="bp-dot" aria-hidden="true"></span>Served by
+    <a href="https://browserpod.io" target="_blank" rel="noreferrer">BrowserPod</a>
+  </p>
   <div class="hero">
     <img src={heroImg} class="base" width="170" height="179" alt="" />
     <img src={svelteLogo} class="framework" alt="Svelte logo" />
