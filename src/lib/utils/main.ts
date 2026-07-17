@@ -1,8 +1,14 @@
+import type { BinaryFile, BrowserPod } from '@leaningtech/browserpod';
 import { cliConfigs, toolItems } from '$lib/config/tools';
+import { writeToTerminal } from '$lib/ide/pod-fs';
 import { trackEvent } from './useLazyTracking';
+import type { PortalUpdate } from '$lib/stores/portals.svelte';
 
-type PortalUpdate = { port: number; url: string | null; active: boolean };
-
+/**
+ * Boots an agent tool's disk image into a pod and runs its CLI against the `#console`
+ * terminal. Portal events (and Claude's OAuth open events) stream through the callbacks
+ * configured in `cliConfigs`.
+ */
 export async function bootCLI(
 	onPortalUpdate?: (update: PortalUpdate) => void,
 	tool: keyof typeof cliConfigs = 'gemini'
@@ -61,7 +67,7 @@ export async function bootCLI(
 		await copyFile(pod, config.projectFile, homePath, filename);
 	}
 
-	terminal.write(`Starting ${toolLabel}...\n`);
+	writeToTerminal(terminal, `Starting ${toolLabel}...\n`);
 
 	trackEvent('Booted', { tool: toolLabel });
 
@@ -73,15 +79,7 @@ export async function bootCLI(
 }
 
 export async function copyFile(
-	pod: {
-		createFile: (
-			path: string,
-			mode: 'binary' | 'text'
-		) => Promise<{
-			write: (data: ArrayBuffer | string) => Promise<void>;
-			close: () => Promise<void>;
-		}>;
-	},
+	pod: BrowserPod,
 	path: string,
 	prefix: string,
 	destFilename?: string
@@ -89,7 +87,7 @@ export async function copyFile(
 	const normalizedPrefix = prefix.endsWith('/') ? prefix.slice(0, -1) : prefix;
 	const dest = destFilename ? `${normalizedPrefix}/${destFilename}` : `${normalizedPrefix}/${path}`;
 
-	const file = await pod.createFile(dest, 'binary');
+	const file = (await pod.createFile(dest, 'binary')) as BinaryFile;
 	const resp = await fetch(path);
 
 	if (!resp.ok) {

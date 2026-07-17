@@ -1,18 +1,20 @@
 <script lang="ts">
 	import Icon from '@iconify/svelte';
 	import pkg from '@leaningtech/browserpod/package.json';
+	import appPkg from '../../../package.json';
 	import favicon from '$lib/assets/favicon.svg';
 	import browserpodLogo from '$lib/assets/browserpod.svg';
 </script>
 
 <footer
-	class="hidden h-8 shrink-0 items-center justify-between border-t border-white/[0.05] bg-[#0a0a0b] px-4 md:flex"
+	class="hidden h-8 shrink-0 items-center justify-between border-t border-bc-mist/10 px-4 md:flex"
+	style="background: transparent; backdrop-filter: blur(20px) saturate(140%); -webkit-backdrop-filter: blur(20px) saturate(140%);"
 >
 	<span class="flex items-center gap-2 text-[11.5px]">
 		<img src={favicon} alt="BrowserCode logo" class="h-4 w-4" />
-		<span class="text-white/40">BrowserCode v0.5.0</span>
-		<span class="rounded bg-amber-500/15 px-1.5 py-0.5 font-mono text-[10px] text-amber-400/80"
-			>Preview</span
+		<span class="text-white/40">BrowserCode</span>
+		<span class="rounded bg-bc-azure/10 px-1.5 py-0.5 font-mono text-[10.5px] text-bc-mist/70"
+			>v{appPkg.version}</span
 		>
 	</span>
 
@@ -20,11 +22,11 @@
 		href="https://browserpod.io"
 		target="_blank"
 		rel="noopener noreferrer"
-		class="flex items-center gap-1.5 text-[11.5px] text-white/40 transition-colors duration-150 hover:text-white/70"
+		class="flex items-center gap-1.5 text-[11.5px] text-white/40 transition-colors duration-150 hover:text-bc-mist"
 	>
 		<img src={browserpodLogo} alt="BrowserPod logo" class="h-4 w-4 opacity-60 grayscale" />
 		<span>Powered by BrowserPod</span>
-		<span class="rounded bg-white/5 px-1.5 py-0.5 font-mono text-[10.5px] text-white/40"
+		<span class="rounded bg-bc-azure/10 px-1.5 py-0.5 font-mono text-[10.5px] text-bc-mist/70"
 			>v{pkg.version}</span
 		>
 	</a>
@@ -33,7 +35,7 @@
 		href="https://labs.leaningtech.com/blog/browserpod-20"
 		target="_blank"
 		rel="noopener noreferrer"
-		class="flex items-center gap-1 text-[11.5px] text-white/40 transition-colors duration-150 hover:text-white/75"
+		class="flex items-center gap-1 text-[11.5px] text-white/40 transition-colors duration-150 hover:text-bc-mist"
 	>
 		<span>Git, bash & BrowserPod 2.0</span>
 		<Icon icon="mingcute:arrow-right-up-line" width="12" height="12" />
