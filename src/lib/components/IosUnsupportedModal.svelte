@@ -1,20 +1,17 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import Icon from '@iconify/svelte';
+	import { isIos } from '$lib/utils/platform';
 
-	let isIos = $state(false);
+	let unsupported = $state(false);
 	let dismissed = $state(false);
 
 	onMount(() => {
-		const ua = navigator.userAgent;
-		// iPad in desktop mode reports MacIntel with touch points
-		isIos =
-			/iPad|iPhone|iPod/.test(ua) ||
-			(navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+		unsupported = isIos();
 	});
 </script>
 
-{#if isIos && !dismissed}
+{#if unsupported && !dismissed}
 	<div
 		class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-bc-abyss/80 px-6 backdrop-blur-md"
 		role="dialog"

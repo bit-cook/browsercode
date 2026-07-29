@@ -1,6 +1,7 @@
 import type { BrowserPod } from '@leaningtech/browserpod';
 import { cliConfigs, toolItems } from '$lib/config/tools';
 import { writePodBinaryFile, writeToTerminal } from '$lib/pod/fs';
+import { isIos } from './platform';
 import { trackEvent } from './useLazyTracking';
 import type { PortalUpdate } from '$lib/pod/portals';
 
@@ -20,11 +21,7 @@ export async function bootCLI(
 
 	const consoleElement = document.querySelector('#console') as HTMLElement;
 
-	const ua = navigator.userAgent;
-	const isIos =
-		/iPad|iPhone|iPod/.test(ua) ||
-		(navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-	if (isIos) {
+	if (isIos()) {
 		consoleElement.textContent = 'unsupported';
 		return;
 	}
