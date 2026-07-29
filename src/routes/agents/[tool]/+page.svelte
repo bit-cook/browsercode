@@ -10,10 +10,7 @@
 	import { openTour } from '$lib/stores/stepper.svelte';
 	import { toolItems } from '$lib/config/tools';
 	import { requestSingleTabLock } from '$lib/utils/tabLock';
-	import {
-		navigateWithLeaveGuard,
-		consumeIntentionalNavigation
-	} from '$lib/stores/leaveWarning.svelte';
+	import { navigateWithLeaveGuard, installLeaveGuard } from '$lib/stores/leaveWarning.svelte';
 	import { PortalState } from '$lib/stores/portals.svelte';
 
 	let isPortalVisible = $state(true);
@@ -69,6 +66,7 @@
 	let closeFallback = $state(false);
 	// Deliberately not state: assigned once at boot and only called from the unmount cleanup.
 	let releaseTabLock: () => void = () => {};
+	let disposeLeaveGuard: () => void = () => {};
 	let showTerminalTip = $state(false);
 
 	// Same reveal treatment as the landing page's About panel: starts closed so the transition
@@ -120,18 +118,6 @@
 		isMobile = window.matchMedia('(max-width: 768px)').matches;
 	}
 
-	// Only browsers get to show text here, and only their own generic wording; The custom
-	// "your work will be lost" copy is reserved for in-app navigation via the leave-warning modal.
-	// A `window.location.href` assignment fires this same event, so navigation we already
-	// confirmed in-app is marked "intentional" and skipped here to avoid a duplicate prompt.
-	// This only fires for real browser-driven unloads: tab close, refresh, back/forward, or a
-	// typed URL.
-	function handleBeforeUnload(event: BeforeUnloadEvent) {
-		if (consumeIntentionalNavigation()) return;
-		event.preventDefault();
-		event.returnValue = '';
-	}
-
 	onMount(() => {
 		updateIsMobile();
 		const mql = window.matchMedia('(max-width: 768px)');
@@ -154,7 +140,7 @@
 
 			// Only warn on tab close/refresh/back-button once a session is actually running here;
 			// The duplicate-tab case above has nothing booted, so there's no work to lose.
-			window.addEventListener('beforeunload', handleBeforeUnload);
+			disposeLeaveGuard = installLeaveGuard();
 
 			// Shown on every boot, not just the first ever visit.
 			showTerminalTip = true;
@@ -169,7 +155,7 @@
 
 		return () => {
 			mql.removeEventListener('change', updateIsMobile);
-			window.removeEventListener('beforeunload', handleBeforeUnload);
+			disposeLeaveGuard();
 			portal.dispose();
 			releaseTabLock();
 		};

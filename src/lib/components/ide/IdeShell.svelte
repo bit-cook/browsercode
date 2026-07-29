@@ -10,7 +10,7 @@
 	import type { BootStage, IdeSession } from '$lib/ide/session.svelte';
 	import { PortalState } from '$lib/stores/portals.svelte';
 	import type { PortalUpdate } from '$lib/pod/portals';
-	import { consumeIntentionalNavigation } from '$lib/stores/leaveWarning.svelte';
+	import { installLeaveGuard } from '$lib/stores/leaveWarning.svelte';
 
 	// Boot-log lines the preview loader streams, per boot mode.
 	const BOOT_LOG: Record<'framework' | 'github', string[]> = {
@@ -162,19 +162,8 @@
 		return () => mql.removeEventListener('change', onChange);
 	});
 
-	// Catches tab close/refresh/back-forward while a pod is running here — the in-app leave-warning
-	// modal (triggered via the sidebar) already asks and marks the navigation intentional, so this
-	// only fires for real browser-driven unloads.
-	function handleBeforeUnload(event: BeforeUnloadEvent) {
-		if (consumeIntentionalNavigation()) return;
-		event.preventDefault();
-		event.returnValue = '';
-	}
-
-	onMount(() => {
-		window.addEventListener('beforeunload', handleBeforeUnload);
-		return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-	});
+	// Catches tab close/refresh/back-forward while a pod is running here.
+	onMount(() => installLeaveGuard());
 
 	onMount(async () => {
 		if (typeof Atomics?.waitAsync !== 'function') {
