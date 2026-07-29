@@ -1,13 +1,31 @@
 <script lang="ts">
 	import Icon from '@iconify/svelte';
 	import QRCode from 'qrcode';
+	import type { PortalItem } from '$lib/stores/portals.svelte';
 
-	type PortalItem = { port: number; url: string };
+	type Props = {
+		src?: string;
+		portals?: PortalItem[];
+		selectedPort?: number | null;
+		showMenu?: boolean;
+		showInfo?: boolean;
+		copied?: boolean;
+		/** Failure text for the QR panel. Owned by the caller, which sets it from `onQrResult`. */
+		qrError?: string;
+		onPortChange?: (event: Event) => void;
+		onToggleMenu?: () => void;
+		onCopyLink?: () => void;
+		onOpenNewTab?: () => void;
+		onShowQrCode?: () => void;
+		onCloseOverlays?: () => void;
+		/** Reports the QR render outcome: a message when it fails, null once one renders. */
+		onQrResult?: (error: string | null) => void;
+	};
 
 	let {
 		src = '',
-		portals = [] as PortalItem[],
-		selectedPort = null as number | null,
+		portals = [],
+		selectedPort = null,
 		showMenu = false,
 		showInfo = false,
 		copied = false,
@@ -17,22 +35,9 @@
 		onCopyLink,
 		onOpenNewTab,
 		onShowQrCode,
-		onCloseOverlays
-	} = $props<{
-		src?: string;
-		portals?: PortalItem[];
-		selectedPort?: number | null;
-		showMenu?: boolean;
-		showInfo?: boolean;
-		copied?: boolean;
-		qrError?: string;
-		onPortChange?: (event: Event) => void;
-		onToggleMenu?: () => void;
-		onCopyLink?: () => void;
-		onOpenNewTab?: () => void;
-		onShowQrCode?: () => void;
-		onCloseOverlays?: () => void;
-	}>();
+		onCloseOverlays,
+		onQrResult
+	}: Props = $props();
 
 	let localQrCodeCanvas = $state<HTMLCanvasElement | null>(null);
 
@@ -46,9 +51,11 @@
 				errorCorrectionLevel: 'H',
 				color: { dark: '#000000', light: '#ffffff' }
 			});
+			// Clears a message left by an earlier failure; this render replaced that canvas.
+			onQrResult?.(null);
 		} catch (error) {
 			console.error('Failed to generate QR code:', error);
-			qrError = 'Unable to generate QR code';
+			onQrResult?.('Unable to generate QR code');
 		}
 	}
 
@@ -160,7 +167,10 @@
 						{#if qrError}
 							<div class="mt-3 text-center text-[12px] text-bc-coral">{qrError}</div>
 						{:else}
-							<div class="mt-3 max-w-50 truncate text-center text-[12px] text-white/40">
+							<!-- Wraps rather than truncates -->
+							<div
+								class="mt-3 w-full max-w-64 px-4 text-center text-[12px] break-all text-white/40"
+							>
 								{src}
 							</div>
 						{/if}

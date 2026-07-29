@@ -96,6 +96,11 @@ export class PortalState {
 		this.showInfo = true;
 	};
 
+	/** Records what Portal.svelte's QR render reported; it owns the canvas, this owns the message. */
+	reportQrResult = (error: string | null): void => {
+		this.qrError = error ?? '';
+	};
+
 	openInNewTab = (): void => {
 		if (!this.url) return;
 		this.showMenu = false;

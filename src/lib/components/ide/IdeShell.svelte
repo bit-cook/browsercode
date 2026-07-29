@@ -395,6 +395,7 @@
 							onOpenNewTab={portal.openInNewTab}
 							onShowQrCode={portal.showQRCode}
 							onCloseOverlays={portal.closeOverlays}
+							onQrResult={portal.reportQrResult}
 						/>
 					{/if}
 					<!-- Loader overlays the preview column, then cross-dissolves out into the iframe. -->

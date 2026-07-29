@@ -287,6 +287,7 @@
 						onOpenNewTab={portal.openInNewTab}
 						onShowQrCode={portal.showQRCode}
 						onCloseOverlays={portal.closeOverlays}
+						onQrResult={portal.reportQrResult}
 					/>
 				</div>
 			{:else if isMobile && portal.portals.length > 0 && activeMobileView === 'preview'}
@@ -306,6 +307,7 @@
 						onOpenNewTab={portal.openInNewTab}
 						onShowQrCode={portal.showQRCode}
 						onCloseOverlays={portal.closeOverlays}
+						onQrResult={portal.reportQrResult}
 					/>
 				</div>
 			{/if}
