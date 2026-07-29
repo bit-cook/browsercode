@@ -1,3 +1,7 @@
+/**
+ * BrowserPod filesystem and terminal plumbing, shared by the playground IDE and the agent
+ * CLIs. Paths are absolute inside the pod; callers resolve them against their own workdir.
+ */
 import type { BinaryFile, BrowserPod, TextFile, Terminal } from '@leaningtech/browserpod';
 
 /** Default working directory. Curated templates hydrate here; GitHub clones live in a subdir. */

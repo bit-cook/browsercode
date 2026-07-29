@@ -8,7 +8,8 @@
 	import LoadingScene from '$lib/components/ide/LoadingScene.svelte';
 	import { fade } from 'svelte/transition';
 	import type { BootStage, IdeSession } from '$lib/ide/session.svelte';
-	import { PortalState, type PortalUpdate } from '$lib/stores/portals.svelte';
+	import { PortalState } from '$lib/stores/portals.svelte';
+	import type { PortalUpdate } from '$lib/pod/portals';
 	import { consumeIntentionalNavigation } from '$lib/stores/leaveWarning.svelte';
 
 	// Boot-log lines the preview loader streams, per boot mode.

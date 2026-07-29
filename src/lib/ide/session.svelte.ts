@@ -6,11 +6,17 @@ import {
 	type FrameworkConfig,
 	type FrameworkId
 } from '$lib/config/frameworks';
-import { POD_HOME, readPodFile, writePodFile, writePodBinaryFile, writeToTerminal } from './pod-fs';
+import {
+	POD_HOME,
+	readPodFile,
+	writePodFile,
+	writePodBinaryFile,
+	writeToTerminal
+} from '$lib/pod/fs';
 import { ANSI, BP_RC, BP_RC_PATH } from './shell-rc';
 import { fetchRepoTree } from '$lib/github/api';
 import { trackEvent } from '$lib/utils/useLazyTracking';
-import type { PortalUpdate } from '$lib/stores/portals.svelte';
+import type { PortalUpdate } from '$lib/pod/portals';
 
 // Re-exported so the boot-owning routes keep a single import site for session types.
 export type { PortalUpdate };
@@ -52,7 +58,7 @@ export class IdeSession {
 
 	/** Which boot path produced this session; drives the label, appPort and workdir. */
 	mode = $state<'framework' | 'github'>('framework');
-	/** Directory the project lives in inside the pod; pod-fs paths resolve against it. */
+	/** Directory the project lives in inside the pod; pod file paths resolve against it. */
 	workdir = POD_HOME;
 	private githubSlug = $state('');
 

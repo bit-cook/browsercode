@@ -1,5 +1,4 @@
-/** A portal event from BrowserPod: a service came up (or went away) on a port. */
-export type PortalUpdate = { port: number; url: string | null; active: boolean };
+import type { PortalUpdate } from '$lib/pod/portals';
 
 /** A live preview target as rendered by Portal.svelte's port selector. */
 export type PortalItem = { port: number; url: string };

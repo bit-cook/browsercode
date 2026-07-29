@@ -1,8 +1,8 @@
-import type { BinaryFile, BrowserPod } from '@leaningtech/browserpod';
+import type { BrowserPod } from '@leaningtech/browserpod';
 import { cliConfigs, toolItems } from '$lib/config/tools';
-import { writeToTerminal } from '$lib/ide/pod-fs';
+import { writePodBinaryFile, writeToTerminal } from '$lib/pod/fs';
 import { trackEvent } from './useLazyTracking';
-import type { PortalUpdate } from '$lib/stores/portals.svelte';
+import type { PortalUpdate } from '$lib/pod/portals';
 
 /**
  * Boots an agent tool's disk image into a pod and runs its CLI against the `#console`
@@ -64,7 +64,7 @@ export async function bootCLI(
 
 	if (config.projectFile) {
 		const filename = config.projectFile.split('/').pop()!;
-		await copyFile(pod, config.projectFile, homePath, filename);
+		await copyStaticFile(pod, config.projectFile, `${homePath}/${filename}`);
 	}
 
 	writeToTerminal(terminal, `Starting ${toolLabel}...\n`);
@@ -78,23 +78,11 @@ export async function bootCLI(
 	});
 }
 
-export async function copyFile(
-	pod: BrowserPod,
-	path: string,
-	prefix: string,
-	destFilename?: string
-) {
-	const normalizedPrefix = prefix.endsWith('/') ? prefix.slice(0, -1) : prefix;
-	const dest = destFilename ? `${normalizedPrefix}/${destFilename}` : `${normalizedPrefix}/${path}`;
-
-	const file = (await pod.createFile(dest, 'binary')) as BinaryFile;
-	const resp = await fetch(path);
-
-	if (!resp.ok) {
-		throw new Error(`Failed to fetch "${path}" (${resp.status} ${resp.statusText})`);
+/** Copies a static asset served by this app into the pod at `destPath`. */
+async function copyStaticFile(pod: BrowserPod, srcPath: string, destPath: string): Promise<void> {
+	const response = await fetch(srcPath);
+	if (!response.ok) {
+		throw new Error(`Failed to fetch "${srcPath}" (${response.status} ${response.statusText})`);
 	}
-
-	const buf = await resp.arrayBuffer();
-	await file.write(buf);
-	await file.close();
+	await writePodBinaryFile(pod, destPath, await response.arrayBuffer());
 }

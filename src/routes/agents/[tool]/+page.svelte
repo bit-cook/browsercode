@@ -14,7 +14,8 @@
 		navigateWithLeaveGuard,
 		consumeIntentionalNavigation
 	} from '$lib/stores/leaveWarning.svelte';
-	import { PortalState, type PortalUpdate } from '$lib/stores/portals.svelte';
+	import { PortalState } from '$lib/stores/portals.svelte';
+	import type { PortalUpdate } from '$lib/pod/portals';
 
 	let isPortalVisible = true;
 

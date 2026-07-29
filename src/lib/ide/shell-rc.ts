@@ -1,4 +1,4 @@
-import { POD_HOME } from './pod-fs';
+import { POD_HOME } from '$lib/pod/fs';
 
 export const BP_RC_PATH = `${POD_HOME}/.bp_rc`;
 
