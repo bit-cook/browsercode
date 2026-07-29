@@ -11,6 +11,7 @@
 	import { PortalState } from '$lib/stores/portals.svelte';
 	import type { PortalUpdate } from '$lib/pod/portals';
 	import { installLeaveGuard } from '$lib/stores/leaveWarning.svelte';
+	import { watchIsMobile } from '$lib/utils/viewport';
 
 	// Boot-log lines the preview loader streams, per boot mode.
 	const BOOT_LOG: Record<'framework' | 'github', string[]> = {
@@ -141,11 +142,13 @@
 	}
 
 	// ── Mobile detection ──────────────────────────────────────────────────────
-	function updateIsMobile() {
-		isMobile = window.matchMedia('(max-width: 768px)').matches;
-		// Close the side panel by default on mobile so it doesn't cover the view
-		if (isMobile && activePanel) activePanel = null;
-	}
+	onMount(() =>
+		watchIsMobile((mobile) => {
+			isMobile = mobile;
+			// Close the side panel by default on mobile so it doesn't cover the view
+			if (isMobile && activePanel) activePanel = null;
+		})
+	);
 
 	$effect(() => {
 		if (activeMobileView === 'terminal') {
@@ -154,14 +157,6 @@
 	});
 
 	// ── Boot ──────────────────────────────────────────────────────────────────
-	onMount(() => {
-		updateIsMobile();
-		const mql = window.matchMedia('(max-width: 768px)');
-		const onChange = () => updateIsMobile();
-		mql.addEventListener('change', onChange);
-		return () => mql.removeEventListener('change', onChange);
-	});
-
 	// Catches tab close/refresh/back-forward while a pod is running here.
 	onMount(() => installLeaveGuard());
 

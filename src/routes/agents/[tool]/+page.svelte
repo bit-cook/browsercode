@@ -10,6 +10,7 @@
 	import { openTour } from '$lib/stores/stepper.svelte';
 	import { toolItems } from '$lib/config/tools';
 	import { requestSingleTabLock } from '$lib/utils/tabLock';
+	import { watchIsMobile } from '$lib/utils/viewport';
 	import { navigateWithLeaveGuard, installLeaveGuard } from '$lib/stores/leaveWarning.svelte';
 	import { PortalState } from '$lib/stores/portals.svelte';
 
@@ -114,14 +115,8 @@
 		showToolMenu = false;
 	}
 
-	function updateIsMobile() {
-		isMobile = window.matchMedia('(max-width: 768px)').matches;
-	}
-
 	onMount(() => {
-		updateIsMobile();
-		const mql = window.matchMedia('(max-width: 768px)');
-		mql.addEventListener('change', updateIsMobile);
+		const unwatchIsMobile = watchIsMobile((mobile) => (isMobile = mobile));
 		requestAnimationFrame(() => {
 			entered = true;
 		});
@@ -154,7 +149,7 @@
 		});
 
 		return () => {
-			mql.removeEventListener('change', updateIsMobile);
+			unwatchIsMobile();
 			disposeLeaveGuard();
 			portal.dispose();
 			releaseTabLock();
