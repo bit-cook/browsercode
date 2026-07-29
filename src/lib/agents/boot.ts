@@ -1,9 +1,9 @@
 import type { BrowserPod } from '@leaningtech/browserpod';
 import { cliConfigs, toolItems } from '$lib/config/tools';
 import { writePodBinaryFile, writeToTerminal } from '$lib/pod/fs';
-import { isIos } from './platform';
-import { trackEvent } from './useLazyTracking';
 import type { PortalUpdate } from '$lib/pod/portals';
+import { isIos } from '$lib/utils/platform';
+import { trackEvent } from '$lib/utils/useLazyTracking';
 
 /**
  * Boots an agent tool's disk image into a pod and runs its CLI against the `#console`

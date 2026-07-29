@@ -6,7 +6,7 @@
 
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
-	import { bootCLI } from '$lib/utils/main';
+	import { bootCLI } from '$lib/agents/boot';
 	import { openTour } from '$lib/stores/stepper.svelte';
 	import { toolItems } from '$lib/config/tools';
 	import { requestSingleTabLock } from '$lib/utils/tabLock';
