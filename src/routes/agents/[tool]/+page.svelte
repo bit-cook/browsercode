@@ -15,9 +15,10 @@
 		consumeIntentionalNavigation
 	} from '$lib/stores/leaveWarning.svelte';
 	import { PortalState } from '$lib/stores/portals.svelte';
-	import type { PortalUpdate } from '$lib/pod/portals';
 
 	let isPortalVisible = true;
+	/** The div the pod's terminal attaches to, rendered by Terminal.svelte. */
+	let consoleEl: HTMLElement | null = null;
 
 	let portalFraction = 0.5;
 	let isDragging = false;
@@ -54,8 +55,8 @@
 	let activeMobileView: 'terminal' | 'preview' = 'terminal';
 
 	// Auto-show the preview on desktop, switch to it on mobile (first portal only), and hide
-	// the pane again when the last portal goes away — agents-specific; the IDE shell instead
-	// pins its preview to the framework's declared app port.
+	// the pane again when the last portal goes away; the IDE shell instead pins its preview
+	// to the framework's declared app port.
 	const portal = new PortalState({
 		onActivate: (count) => {
 			if (!isMobile) isPortalVisible = true;
@@ -77,14 +78,14 @@
 		showTerminalTip = false;
 	}
 
-	// Any keypress means they've already found the terminal — no need to keep the tip up.
+	// Any keypress means they've already found the terminal; no need to keep the tip up.
 	function handleAnyKeydown() {
 		if (showTerminalTip) dismissTerminalTip();
 	}
 
 	function attemptCloseTab() {
 		window.close();
-		// Browsers only let scripts close tabs they themselves opened — if we're still here
+		// Browsers only let scripts close tabs they themselves opened; If we're still here
 		// shortly after, that didn't work, so tell the user to close it manually instead.
 		setTimeout(() => {
 			closeFallback = true;
@@ -118,11 +119,11 @@
 		isMobile = window.matchMedia('(max-width: 768px)').matches;
 	}
 
-	// Only browsers get to show text here, and only their own generic wording — the custom
+	// Only browsers get to show text here, and only their own generic wording; The custom
 	// "your work will be lost" copy is reserved for in-app navigation via the leave-warning modal.
 	// A `window.location.href` assignment fires this same event, so navigation we already
-	// confirmed in-app is marked "intentional" and skipped here to avoid a duplicate prompt —
-	// this only fires for real browser-driven unloads: tab close, refresh, back/forward, or a
+	// confirmed in-app is marked "intentional" and skipped here to avoid a duplicate prompt.
+	// This only fires for real browser-driven unloads: tab close, refresh, back/forward, or a
 	// typed URL.
 	function handleBeforeUnload(event: BeforeUnloadEvent) {
 		if (consumeIntentionalNavigation()) return;
@@ -138,8 +139,8 @@
 			entered = true;
 		});
 
-		// Two tabs booting the same agent would both write to the same BrowserPod storage key —
-		// claim an exclusive, tab-lifetime lock first and only boot if we actually got it.
+		// Two tabs booting the same agent would both write to the same BrowserPod storage key;
+		// Claim an exclusive, tab-lifetime lock first and only boot if we actually got it.
 		const tool = getActiveTool();
 		const lock = requestSingleTabLock(`agent-session:${tool}`);
 		releaseTabLock = lock.release;
@@ -150,29 +151,19 @@
 				return;
 			}
 
-			// Only warn on tab close/refresh/back-button once a session is actually running here —
-			// the duplicate-tab case above has nothing booted, so there's no work to lose.
+			// Only warn on tab close/refresh/back-button once a session is actually running here;
+			// The duplicate-tab case above has nothing booted, so there's no work to lose.
 			window.addEventListener('beforeunload', handleBeforeUnload);
 
-			// Shown on every boot, not just the first ever visit — it's an easy thing to miss.
+			// Shown on every boot, not just the first ever visit.
 			showTerminalTip = true;
 
-			bootCLI((update: PortalUpdate | string) => {
-				if (typeof update === 'string') {
-					let parsed: URL;
-					try {
-						parsed = new URL(update);
-					} catch {
-						return;
-					}
-					const port = Number(parsed.port);
-					if (!Number.isInteger(port) || port <= 0) return;
-					portal.apply({ port, url: update, active: true });
-					return;
-				}
+			if (!consoleEl) {
+				console.error('Terminal container is not ready yet');
+				return;
+			}
 
-				portal.apply(update);
-			}, tool);
+			bootCLI(tool, consoleEl, portal.apply);
 		});
 
 		return () => {
@@ -230,7 +221,7 @@
 				class="absolute inset-0 bg-black"
 				class:hidden={isMobile && activeMobileView !== 'terminal'}
 			>
-				<Terminal />
+				<Terminal bind:consoleEl />
 			</div>
 
 			<!-- Non-blocking tip: this is a real terminal, not a GUI — clicks alone won't do much. -->

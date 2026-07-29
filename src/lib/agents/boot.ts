@@ -6,23 +6,22 @@ import { isIos } from '$lib/utils/platform';
 import { trackEvent } from '$lib/utils/useLazyTracking';
 
 /**
- * Boots an agent tool's disk image into a pod and runs its CLI against the `#console`
- * terminal. Portal events (and Claude's OAuth open events) stream through the callbacks
+ * Boots an agent tool's disk image into a pod and runs its CLI against `terminalEl`.
+ * Portal events (and Claude's OAuth open events) stream through the callbacks
  * configured in `cliConfigs`.
  */
 export async function bootCLI(
-	onPortalUpdate?: (update: PortalUpdate) => void,
-	tool: keyof typeof cliConfigs = 'gemini'
+	tool: keyof typeof cliConfigs,
+	terminalEl: HTMLElement,
+	onPortalUpdate?: (update: PortalUpdate) => void
 ) {
 	const { BrowserPod } = await import('@leaningtech/browserpod');
 
 	const config = cliConfigs[tool] ?? cliConfigs.gemini;
 	const toolLabel = toolItems.find((item) => item.id === tool)?.label ?? tool;
 
-	const consoleElement = document.querySelector('#console') as HTMLElement;
-
 	if (isIos()) {
-		consoleElement.textContent = 'unsupported';
+		terminalEl.textContent = 'unsupported';
 		return;
 	}
 
@@ -31,7 +30,7 @@ export async function bootCLI(
 		userImage: config.userImage,
 		storageKey: config.storageKey
 	});
-	const terminal = await pod.createDefaultTerminal(consoleElement);
+	const terminal = await pod.createDefaultTerminal(terminalEl);
 
 	pod.onPortal((portal) => {
 		const port = Number(portal?.port);
