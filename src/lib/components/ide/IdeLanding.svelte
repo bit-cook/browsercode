@@ -1,26 +1,10 @@
 <script lang="ts">
 	import Icon from '@iconify/svelte';
 	import { frameworkRailItems } from '$lib/config/frameworks';
+	import { parseGitHubUrl } from '$lib/github/parse';
 
 	let url = $state('');
 	let error = $state('');
-
-	type ParsedRepo = { owner: string; repo: string; ref: string; dir: string };
-
-	function parseGitHubUrl(input: string): ParsedRepo | null {
-		const cleaned = input
-			.trim()
-			.replace(/^https?:\/\//, '')
-			.replace(/^github\.com\//, '')
-			.replace(/\.git$/, '')
-			.replace(/\/+$/, '');
-		const parts = cleaned.split('/').filter(Boolean);
-		if (parts.length < 2) return null;
-		const [owner, repo, keyword, ref, ...dirParts] = parts;
-		if (keyword === 'tree' && ref) return { owner, repo, ref, dir: dirParts.join('/') };
-		if (parts.length === 2) return { owner, repo, ref: 'main', dir: '' };
-		return null;
-	}
 
 	function openRepo() {
 		const parsed = parseGitHubUrl(url);

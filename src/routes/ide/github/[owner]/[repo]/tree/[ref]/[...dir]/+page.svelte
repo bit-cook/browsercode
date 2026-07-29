@@ -4,8 +4,7 @@
 	import Icon from '@iconify/svelte';
 	import IdeShell from '$lib/components/ide/IdeShell.svelte';
 	import { IdeSession, type PortalUpdate } from '$lib/ide/session.svelte';
-
-	const SEGMENT = /^[\w.-]+$/;
+	import { isValidRepoPath } from '$lib/github/parse';
 
 	// `[...dir]` matches the empty segment, so /…/tree/<ref> arrives here with dir = ''.
 	const owner = $page.params.owner ?? '';
@@ -13,12 +12,7 @@
 	const ref = $page.params.ref ?? '';
 	const dir = $page.params.dir ?? '';
 
-	function dirIsValid(value: string): boolean {
-		if (value === '') return true;
-		return value.split('/').every((seg) => SEGMENT.test(seg) && seg !== '..');
-	}
-
-	const valid = SEGMENT.test(owner) && SEGMENT.test(repo) && SEGMENT.test(ref) && dirIsValid(dir);
+	const valid = isValidRepoPath({ owner, repo, ref, dir });
 
 	const session = new IdeSession();
 
