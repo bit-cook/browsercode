@@ -16,13 +16,13 @@
 	} from '$lib/stores/leaveWarning.svelte';
 	import { PortalState } from '$lib/stores/portals.svelte';
 
-	let isPortalVisible = true;
+	let isPortalVisible = $state(true);
 	/** The div the pod's terminal attaches to, rendered by Terminal.svelte. */
-	let consoleEl: HTMLElement | null = null;
+	let consoleEl = $state<HTMLElement | null>(null);
 
-	let portalFraction = 0.5;
-	let isDragging = false;
-	let containerEl: HTMLElement | null = null;
+	let portalFraction = $state(0.5);
+	let isDragging = $state(false);
+	let containerEl = $state<HTMLElement | null>(null);
 
 	function startDrag(e: MouseEvent) {
 		e.preventDefault();
@@ -51,8 +51,8 @@
 		window.addEventListener('mouseup', onUp);
 	}
 
-	let isMobile = false;
-	let activeMobileView: 'terminal' | 'preview' = 'terminal';
+	let isMobile = $state(false);
+	let activeMobileView = $state<'terminal' | 'preview'>('terminal');
 
 	// Auto-show the preview on desktop, switch to it on mobile (first portal only), and hide
 	// the pane again when the last portal goes away; the IDE shell instead pins its preview
@@ -64,15 +64,16 @@
 		},
 		onEmpty: () => (isPortalVisible = false)
 	});
-	let showToolMenu = false;
-	let showDuplicateTabWarning = false;
-	let closeFallback = false;
+	let showToolMenu = $state(false);
+	let showDuplicateTabWarning = $state(false);
+	let closeFallback = $state(false);
+	// Deliberately not state: assigned once at boot and only called from the unmount cleanup.
 	let releaseTabLock: () => void = () => {};
-	let showTerminalTip = false;
+	let showTerminalTip = $state(false);
 
 	// Same reveal treatment as the landing page's About panel: starts closed so the transition
 	// actually animates in on arrival, rather than snapping straight to open.
-	let entered = false;
+	let entered = $state(false);
 
 	function dismissTerminalTip() {
 		showTerminalTip = false;
