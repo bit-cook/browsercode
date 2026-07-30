@@ -49,6 +49,8 @@ export class IdeSession {
 	openFiles = $state<OpenFile[]>([]);
 	/** Path of the active tab; '' when no tab is open. */
 	selectedFile = $state('');
+	/** Pending scroll-to-location (1-based) the editor consumes once the file's model is active. */
+	revealRequest = $state<{ path: string; line: number; column: number } | null>(null);
 	loading = $state(true);
 	isSaving = $state(false);
 	hasPortal = $state(false);
@@ -466,6 +468,15 @@ export class IdeSession {
 		} finally {
 			this.loading = false;
 		}
+	}
+
+	/**
+	 * Opens `path` as a preview tab and reveals `line`/`column` (1-based). The request is set
+	 * before opening so it survives an already-open file, applied once the model attaches.
+	 */
+	async openAt(path: string, line: number, column = 1): Promise<void> {
+		this.revealRequest = { path, line, column };
+		await this.openFile(path, true);
 	}
 
 	/** Promotes a preview tab to a permanent one; safe to call while the tab is still loading. */

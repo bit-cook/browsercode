@@ -69,11 +69,23 @@
 		);
 	}
 
+	/** Applies a pending Search "jump to line" once the target's model is showing, then clears it. */
+	function consumeReveal(path: string) {
+		const reveal = session.revealRequest;
+		if (!editor || !reveal || reveal.path !== path) return;
+		editor.revealLineInCenter(reveal.line);
+		editor.setPosition({ lineNumber: reveal.line, column: reveal.column });
+		editor.focus();
+		session.revealRequest = null;
+	}
+
 	// Show the active tab: park the outgoing view state, attach the incoming
 	// model, restore its cursor/scroll.
 	$effect(() => {
 		const entry = session.openFiles.find((file) => file.path === session.selectedFile);
 		if (!editor || !monacoMod) return;
+		// Track the reveal request so a jump to the already-open file still re-runs this effect.
+		void session.revealRequest;
 		if (!entry) {
 			if (renderedPath) viewStates.set(renderedPath, editor.saveViewState());
 			editor.setModel(null);
@@ -84,6 +96,7 @@
 			// Session-side content change — push it into the model.
 			const model = editor.getModel();
 			if (model && model.getValue() !== entry.content) model.setValue(entry.content);
+			consumeReveal(entry.path);
 			return;
 		}
 		if (renderedPath) viewStates.set(renderedPath, editor.saveViewState());
@@ -93,6 +106,7 @@
 		const viewState = viewStates.get(entry.path);
 		if (viewState) editor.restoreViewState(viewState);
 		renderedPath = entry.path;
+		consumeReveal(entry.path);
 	});
 
 	// Dispose models and view states whose tab has been closed (or renamed away).

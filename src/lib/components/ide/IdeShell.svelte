@@ -4,6 +4,7 @@
 	import Portal from '$lib/components/Portal.svelte';
 	import EditorPane from '$lib/components/ide/EditorPane.svelte';
 	import FileTreePanel from '$lib/components/ide/FileTreePanel.svelte';
+	import SearchPanel from '$lib/components/ide/SearchPanel.svelte';
 	import TerminalTabs from '$lib/components/ide/TerminalTabs.svelte';
 	import LoadingScene from '$lib/components/ide/LoadingScene.svelte';
 	import { fade } from 'svelte/transition';
@@ -55,7 +56,7 @@
 	} = $props();
 
 	let isCompatibleBrowser = $state(true);
-	let activePanel = $state<'files' | null>('files');
+	let activePanel = $state<'files' | 'search' | null>('files');
 	let fileTree = $state<{ startCreate: (kind: 'file' | 'folder') => void } | null>(null);
 
 	// Frameworks with a declared app port keep the preview pinned to it; other
@@ -222,6 +223,15 @@
 				>
 					<Icon icon="mingcute:file-line" width="18" height="18" />
 				</button>
+				<button
+					onclick={() => (activePanel = activePanel === 'search' ? null : 'search')}
+					class="flex items-center justify-center rounded p-1.5 transition {activePanel === 'search'
+						? 'bg-bc-azure/15 text-bc-azure'
+						: 'text-zinc-600 hover:bg-white/5 hover:text-zinc-300'}"
+					title="Search"
+				>
+					<Icon icon="mingcute:search-line" width="18" height="18" />
+				</button>
 			</div>
 			<div class="mt-auto flex flex-col gap-0.5 p-1 pb-2">
 				<ZenToggle
@@ -242,44 +252,55 @@
 			></button>
 		{/if}
 
-		<!-- Side panel: file tree -->
+		<!-- Side panel: files or search -->
 		{#if activePanel}
 			<div
 				class="side-panel flex shrink-0 flex-col bg-bc-navy"
 				style="width: {isMobile ? 240 : filePanelWidth}px;"
 			>
-				<div class="flex items-center justify-between border-b border-bc-mist/10 px-3 py-1.5">
-					<span class="text-[10px] font-medium tracking-widest text-zinc-600 uppercase">
-						Files
-					</span>
-					<div class="flex items-center gap-0.5">
-						<button
-							type="button"
-							title="New file"
-							disabled={!session.podReady}
-							onclick={() => fileTree?.startCreate('file')}
-							class="rounded p-1 text-zinc-600 transition hover:bg-white/5 hover:text-zinc-300 disabled:pointer-events-none disabled:opacity-40"
-						>
-							<Icon icon="mingcute:file-new-line" width="13" height="13" />
-						</button>
-						<button
-							type="button"
-							title="New folder"
-							disabled={!session.podReady}
-							onclick={() => fileTree?.startCreate('folder')}
-							class="rounded p-1 text-zinc-600 transition hover:bg-white/5 hover:text-zinc-300 disabled:pointer-events-none disabled:opacity-40"
-						>
-							<Icon icon="mingcute:new-folder-line" width="13" height="13" />
-						</button>
+				{#if activePanel === 'files'}
+					<div class="flex items-center justify-between border-b border-bc-mist/10 px-3 py-1.5">
+						<span class="text-[10px] font-medium tracking-widest text-zinc-600 uppercase">
+							Files
+						</span>
+						<div class="flex items-center gap-0.5">
+							<button
+								type="button"
+								title="New file"
+								disabled={!session.podReady}
+								onclick={() => fileTree?.startCreate('file')}
+								class="rounded p-1 text-zinc-600 transition hover:bg-white/5 hover:text-zinc-300 disabled:pointer-events-none disabled:opacity-40"
+							>
+								<Icon icon="mingcute:file-new-line" width="13" height="13" />
+							</button>
+							<button
+								type="button"
+								title="New folder"
+								disabled={!session.podReady}
+								onclick={() => fileTree?.startCreate('folder')}
+								class="rounded p-1 text-zinc-600 transition hover:bg-white/5 hover:text-zinc-300 disabled:pointer-events-none disabled:opacity-40"
+							>
+								<Icon icon="mingcute:new-folder-line" width="13" height="13" />
+							</button>
+						</div>
 					</div>
-				</div>
-				<div class="flex-1 overflow-y-auto p-1.5">
-					<FileTreePanel
-						bind:this={fileTree}
-						{session}
-						onFileOpen={() => isMobile && (activePanel = null)}
-					/>
-				</div>
+					<div class="flex-1 overflow-y-auto p-1.5">
+						<FileTreePanel
+							bind:this={fileTree}
+							{session}
+							onFileOpen={() => isMobile && (activePanel = null)}
+						/>
+					</div>
+				{:else if activePanel === 'search'}
+					<div class="flex items-center border-b border-bc-mist/10 px-3 py-1.5">
+						<span class="text-[10px] font-medium tracking-widest text-zinc-600 uppercase">
+							Search
+						</span>
+					</div>
+					<div class="min-h-0 flex-1">
+						<SearchPanel {session} onFileOpen={() => isMobile && (activePanel = null)} />
+					</div>
+				{/if}
 			</div>
 
 			<!-- Divider: side panel / editor -->

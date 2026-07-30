@@ -20,6 +20,22 @@ export async function readPodFile(pod: BrowserPod, absPath: string): Promise<str
 	return content;
 }
 
+/** Reads a text file, or returns null (without reading it) when larger than `maxBytes`. */
+export async function readPodFileWithinLimit(
+	pod: BrowserPod,
+	absPath: string,
+	maxBytes: number
+): Promise<string | null> {
+	const file = (await pod.openFile(absPath, 'utf-8')) as TextFile;
+	try {
+		const size = await file.getSize();
+		if (size > maxBytes) return null;
+		return await file.read(size);
+	} finally {
+		await file.close();
+	}
+}
+
 export async function writePodFile(
 	pod: BrowserPod,
 	absPath: string,
