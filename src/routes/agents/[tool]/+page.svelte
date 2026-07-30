@@ -13,6 +13,8 @@
 	import { watchIsMobile } from '$lib/utils/viewport';
 	import { navigateWithLeaveGuard, installLeaveGuard } from '$lib/stores/leaveWarning.svelte';
 	import { PortalState } from '$lib/stores/portals.svelte';
+	import ZenToggle from '$lib/components/ZenToggle.svelte';
+	import { zenState } from '$lib/stores/zen.svelte';
 
 	let isPortalVisible = $state(true);
 	/** The div the pod's terminal attaches to, rendered by Terminal.svelte. */
@@ -149,6 +151,8 @@
 		});
 
 		return () => {
+			// Never leave the global chrome hidden after navigating away from an agent session.
+			zenState.on = false;
 			unwatchIsMobile();
 			disposeLeaveGuard();
 			portal.dispose();
@@ -205,6 +209,16 @@
 			>
 				<Terminal bind:consoleEl />
 			</div>
+
+			<!-- Zen toggle: the agents view has no icon rail, so this floating control is the
+			     always-visible way in and out. Desktop only. -->
+			{#if !isMobile}
+				<ZenToggle
+					baseClass="absolute bottom-4 left-4 z-30 flex items-center justify-center rounded-lg border p-2 backdrop-blur-sm transition"
+					activeClass="border-bc-azure/40 bg-bc-azure/20 text-bc-azure"
+					idleClass="border-white/10 bg-black/40 text-white/40 hover:bg-black/60 hover:text-white/70"
+				/>
+			{/if}
 
 			<!-- Non-blocking tip: this is a real terminal, not a GUI — clicks alone won't do much. -->
 			{#if showTerminalTip && !(isMobile && activeMobileView !== 'terminal')}

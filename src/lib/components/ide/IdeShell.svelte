@@ -12,6 +12,8 @@
 	import type { PortalUpdate } from '$lib/pod/portals';
 	import { installLeaveGuard } from '$lib/stores/leaveWarning.svelte';
 	import { watchIsMobile } from '$lib/utils/viewport';
+	import ZenToggle from '$lib/components/ZenToggle.svelte';
+	import { zenState } from '$lib/stores/zen.svelte';
 
 	// Boot-log lines the preview loader streams, per boot mode.
 	const BOOT_LOG: Record<'framework' | 'github', string[]> = {
@@ -177,6 +179,8 @@
 	});
 
 	onDestroy(() => {
+		// Never leave the global chrome hidden after navigating away from /ide.
+		zenState.on = false;
 		portal.dispose();
 		session.shutdown();
 	});
@@ -206,7 +210,7 @@
 		class:is-mobile={isMobile}
 		bind:this={bodyEl}
 	>
-		<!-- Icon rail -->
+		<!-- Icon rail: panel navigators anchor to the top, global view toggles to the bottom. -->
 		<aside class="flex w-10 shrink-0 flex-col border-r border-bc-mist/10 bg-bc-navy">
 			<div class="flex flex-col gap-0.5 p-1 pt-2">
 				<button
@@ -218,6 +222,13 @@
 				>
 					<Icon icon="mingcute:file-line" width="18" height="18" />
 				</button>
+			</div>
+			<div class="mt-auto flex flex-col gap-0.5 p-1 pb-2">
+				<ZenToggle
+					baseClass="flex items-center justify-center rounded p-1.5 transition"
+					activeClass="bg-bc-azure/15 text-bc-azure"
+					idleClass="text-zinc-600 hover:bg-white/5 hover:text-zinc-300"
+				/>
 			</div>
 		</aside>
 
