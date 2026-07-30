@@ -20,6 +20,17 @@ export async function readPodFile(pod: BrowserPod, absPath: string): Promise<str
 	return content;
 }
 
+/** Reads a file as raw bytes so binary assets survive intact. */
+export async function readPodBinaryFile(pod: BrowserPod, absPath: string): Promise<Uint8Array> {
+	const file = (await pod.openFile(absPath, 'binary')) as BinaryFile;
+	try {
+		const size = await file.getSize();
+		return new Uint8Array(await file.read(size));
+	} finally {
+		await file.close();
+	}
+}
+
 /** Reads a text file, or returns null (without reading it) when larger than `maxBytes`. */
 export async function readPodFileWithinLimit(
 	pod: BrowserPod,

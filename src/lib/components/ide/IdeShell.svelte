@@ -9,6 +9,7 @@
 	import LoadingScene from '$lib/components/ide/LoadingScene.svelte';
 	import { fade } from 'svelte/transition';
 	import type { BootStage, IdeSession } from '$lib/ide/session.svelte';
+	import { downloadProject } from '$lib/ide/download';
 	import { PortalState } from '$lib/stores/portals.svelte';
 	import type { PortalUpdate } from '$lib/pod/portals';
 	import { installLeaveGuard } from '$lib/stores/leaveWarning.svelte';
@@ -56,6 +57,20 @@
 	} = $props();
 
 	let isCompatibleBrowser = $state(true);
+	let downloading = $state(false);
+
+	async function handleDownload() {
+		if (downloading || !session.hasPortal) return;
+		downloading = true;
+		try {
+			await downloadProject(session);
+		} catch (error) {
+			console.error('Failed to download project:', error);
+		} finally {
+			downloading = false;
+		}
+	}
+
 	let activePanel = $state<'files' | 'search' | null>('files');
 	let fileTree = $state<{ startCreate: (kind: 'file' | 'folder') => void } | null>(null);
 
@@ -203,6 +218,21 @@
 				<span class="ml-1 shrink-0 text-bc-mist/70">saving…</span>
 			{/if}
 		</div>
+		<button
+			type="button"
+			title="Download this project"
+			disabled={!session.hasPortal || downloading}
+			onclick={handleDownload}
+			class="flex shrink-0 items-center gap-1.5 rounded px-2 py-1 text-[11px] text-zinc-400 transition hover:bg-white/5 hover:text-zinc-200 disabled:pointer-events-none disabled:opacity-40"
+		>
+			<Icon
+				icon={downloading ? 'mingcute:loading-line' : 'mingcute:download-line'}
+				class={downloading ? 'animate-spin' : ''}
+				width="15"
+				height="15"
+			/>
+			<span>{downloading ? 'Zipping…' : 'Download'}</span>
+		</button>
 	</header>
 
 	<!-- ── Body ────────────────────────────────────────────────────────────── -->

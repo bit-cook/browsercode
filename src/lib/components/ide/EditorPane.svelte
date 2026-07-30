@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte';
+	import { onDestroy, onMount, untrack } from 'svelte';
 	import { SvelteMap } from 'svelte/reactivity';
 	import Icon from '@iconify/svelte';
 	import { fileIcon } from '$lib/ide/file-icons';
@@ -131,6 +131,12 @@
 			clearTimeout(saveTimeout);
 			saveTimeout = setTimeout(() => void session.saveFile(path), 1000);
 		}
+	});
+
+	// Saves are gated on `hasPortal`, so edits made during boot never persist. Flush
+	// them once the dev server is up.
+	$effect(() => {
+		if (session.hasPortal) untrack(() => void session.saveAll());
 	});
 
 	// Teardown: Monaco leaks DOM/workers if not disposed

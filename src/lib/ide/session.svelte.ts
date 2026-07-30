@@ -508,6 +508,12 @@ export class IdeSession {
 		if (entry) await this.saveEntry(entry);
 	}
 
+	/** Flushes every tab with unsaved edits to the pod. */
+	async saveAll(): Promise<void> {
+		const dirty = this.openFiles.filter((file) => file.content !== file.savedContent);
+		await Promise.all(dirty.map((entry) => this.saveEntry(entry)));
+	}
+
 	private async saveEntry(entry: OpenFile): Promise<void> {
 		// Saving only makes sense once the dev server is reachable; earlier writes
 		// would race the template hydration.
