@@ -1,10 +1,12 @@
 <script lang="ts">
 	import Icon from '@iconify/svelte';
 	import QRCode from 'qrcode';
-	import type { PortalItem } from '$lib/stores/portals.svelte';
+	import type { FrameStatus, PortalItem } from '$lib/stores/portals.svelte';
 
 	type Props = {
 		src?: string;
+		/** Gates the iframe; it mounts once the dev server has answered. */
+		frameStatus?: FrameStatus;
 		portals?: PortalItem[];
 		selectedPort?: number | null;
 		showMenu?: boolean;
@@ -18,12 +20,15 @@
 		onOpenNewTab?: () => void;
 		onShowQrCode?: () => void;
 		onCloseOverlays?: () => void;
-		/** Reports the QR render outcome: a message when it fails, null once one renders. */
+		/** Reports the QR render outcome; a message when it fails, null once one renders. */
 		onQrResult?: (error: string | null) => void;
+		/** Fires when the framed document loads. */
+		onFrameLoad?: () => void;
 	};
 
 	let {
 		src = '',
+		frameStatus = 'waiting',
 		portals = [],
 		selectedPort = null,
 		showMenu = false,
@@ -36,7 +41,8 @@
 		onOpenNewTab,
 		onShowQrCode,
 		onCloseOverlays,
-		onQrResult
+		onQrResult,
+		onFrameLoad
 	}: Props = $props();
 
 	let localQrCodeCanvas = $state<HTMLCanvasElement | null>(null);
@@ -141,12 +147,18 @@
 		<!-- Content -->
 		{#if src}
 			<div class="relative min-h-0 flex-1">
-				<iframe
-					{src}
-					id="portal"
-					title="Portal content"
-					class="h-full min-h-0 w-full border-none bg-white"
-				></iframe>
+				<!-- Mounts once the dev server answers; an early navigation hangs and stays blank. -->
+				{#if frameStatus !== 'waiting'}
+					<iframe
+						{src}
+						id="portal"
+						title="Portal content"
+						onload={onFrameLoad}
+						class="h-full min-h-0 w-full border-none {frameStatus === 'ready'
+							? 'bg-white'
+							: 'bg-bc-navy'}"
+					></iframe>
+				{/if}
 
 				{#if showInfo}
 					<div

@@ -270,6 +270,8 @@
 				>
 					<Portal
 						src={portal.url}
+						frameStatus={portal.frameStatus}
+						onFrameLoad={portal.reportFrameLoaded}
 						portals={portal.portals}
 						selectedPort={portal.selectedPort}
 						showMenu={portal.showMenu}
@@ -290,6 +292,8 @@
 				<div class="absolute inset-0 overflow-hidden">
 					<Portal
 						src={portal.url}
+						frameStatus={portal.frameStatus}
+						onFrameLoad={portal.reportFrameLoaded}
 						portals={portal.portals}
 						selectedPort={portal.selectedPort}
 						showMenu={portal.showMenu}

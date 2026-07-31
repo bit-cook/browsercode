@@ -78,7 +78,8 @@
 	// ports stay reachable through the port selector.
 	const portal = new PortalState({ preferredPort: () => session.appPort });
 
-	let previewLive = $derived(portal.portals.length > 0);
+	// Live once the framed document loaded, so the loader covers the server's start and first paint.
+	let previewLive = $derived(portal.frameStatus === 'ready');
 	let loaderVisible = $state(true);
 	$effect(() => {
 		if (!previewLive) loaderVisible = true;
@@ -429,6 +430,8 @@
 					{#if portal.portals.length > 0}
 						<Portal
 							src={portal.url}
+							frameStatus={portal.frameStatus}
+							onFrameLoad={portal.reportFrameLoaded}
 							portals={portal.portals}
 							selectedPort={portal.selectedPort}
 							showMenu={portal.showMenu}
