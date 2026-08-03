@@ -1,3 +1,7 @@
+/**
+ * BrowserPod filesystem and terminal plumbing, shared by the playground IDE and the agent
+ * CLIs. Paths are absolute inside the pod; callers resolve them against their own workdir.
+ */
 import type { BinaryFile, BrowserPod, TextFile, Terminal } from '@leaningtech/browserpod';
 
 /** Default working directory. Curated templates hydrate here; GitHub clones live in a subdir. */
@@ -14,6 +18,36 @@ export async function readPodFile(pod: BrowserPod, absPath: string): Promise<str
 	const content = await file.read(size);
 	await file.close();
 	return content;
+}
+
+/** Reads a file as raw bytes so binary assets survive intact. */
+export async function readPodBinaryFile(
+	pod: BrowserPod,
+	absPath: string
+): Promise<Uint8Array<ArrayBuffer>> {
+	const file = (await pod.openFile(absPath, 'binary')) as BinaryFile;
+	try {
+		const size = await file.getSize();
+		return new Uint8Array(await file.read(size));
+	} finally {
+		await file.close();
+	}
+}
+
+/** Reads a text file, or returns null (without reading it) when larger than `maxBytes`. */
+export async function readPodFileWithinLimit(
+	pod: BrowserPod,
+	absPath: string,
+	maxBytes: number
+): Promise<string | null> {
+	const file = (await pod.openFile(absPath, 'utf-8')) as TextFile;
+	try {
+		const size = await file.getSize();
+		if (size > maxBytes) return null;
+		return await file.read(size);
+	} finally {
+		await file.close();
+	}
 }
 
 export async function writePodFile(

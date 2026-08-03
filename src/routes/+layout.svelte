@@ -10,6 +10,7 @@
 	import { page } from '$app/stores';
 	import { toolItems } from '$lib/config/tools';
 	import { stepperState } from '$lib/stores/stepper.svelte';
+	import { zenState } from '$lib/stores/zen.svelte';
 
 	let { children } = $props();
 
@@ -20,10 +21,11 @@
 
 	// Show on the landing surfaces (Home, /agents, bare /ide) and during tour step 6.
 	let showRibbon = $derived(
-		ribbonAboveTour ||
-			$page.route.id === '/' ||
-			$page.route.id === '/agents' ||
-			($page.route.id === '/ide' && !$page.url.searchParams.has('framework'))
+		!zenState.on &&
+			(ribbonAboveTour ||
+				$page.route.id === '/' ||
+				$page.route.id === '/agents' ||
+				($page.route.id === '/ide' && !$page.url.searchParams.has('framework')))
 	);
 
 	const validToolIds = new Set<string>(toolItems.filter((t) => !t.disabled).map((t) => t.id));
@@ -74,6 +76,12 @@
 	<meta property="twitter:url" content={pageUrl} />
 </svelte:head>
 
+<svelte:window
+	onkeydown={(e) => {
+		if (zenState.on && e.key === 'Escape') zenState.on = false;
+	}}
+/>
+
 <IosUnsupportedModal />
 
 <div class="flex h-dvh w-screen overflow-hidden">
@@ -81,7 +89,9 @@
 	     Help flyout and the Home page both need to trigger it from anywhere via stepperState. -->
 	<Stepper />
 	<LeaveWarningModal />
-	<Sidebar />
+	{#if !zenState.on}
+		<Sidebar />
+	{/if}
 
 	<!-- GitHub Ribbon — landing surfaces only (Home, /agents, bare /ide — see showRibbon above);
 	     the sidebar carries the GitHub link on the app surfaces. -->
@@ -113,6 +123,8 @@
 			</main>
 		</div>
 
-		<UtilityBar />
+		{#if !zenState.on}
+			<UtilityBar />
+		{/if}
 	</div>
 </div>

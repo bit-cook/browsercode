@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Icon from '@iconify/svelte';
 	import { SvelteSet } from 'svelte/reactivity';
+	import { downloadFile } from '$lib/ide/download';
 	import { fileIcon, folderIcon } from '$lib/ide/file-icons';
 	import type { IdeSession } from '$lib/ide/session.svelte';
 
@@ -171,6 +172,15 @@
 			expandedFolders.add(to);
 		}
 		renaming = null;
+	}
+
+	async function requestDownload(path: string) {
+		closeMenu();
+		try {
+			await downloadFile(session, path);
+		} catch (error) {
+			console.error('Failed to download file:', error);
+		}
 	}
 
 	function requestDelete(path: string, isDir: boolean) {
@@ -353,6 +363,13 @@
 		{@render menuItem('mingcute:edit-2-line', 'Rename…', () =>
 			startRename(target.path, target.isDir)
 		)}
+		{#if !target.isDir}
+			{@render menuItem(
+				'mingcute:download-line',
+				'Download',
+				() => void requestDownload(target.path)
+			)}
+		{/if}
 		{@render menuItem(
 			'mingcute:delete-2-line',
 			'Delete',

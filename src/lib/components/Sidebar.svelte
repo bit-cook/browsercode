@@ -7,6 +7,7 @@
 	import { frameworkRailItems } from '$lib/config/frameworks';
 	import { trackEvent } from '$lib/utils/useLazyTracking';
 	import { openTour } from '$lib/stores/stepper.svelte';
+	import { NEW_ISSUE_URL } from '$lib/utils/bug-report';
 	import { navigateWithLeaveGuard } from '$lib/stores/leaveWarning.svelte';
 
 	let isHome = $derived($page.route.id === '/');
@@ -306,8 +307,10 @@
 						</span>
 						<span class="flex-1 truncate">UI tour</span>
 					</button>
+					<!-- The tracker is an external URL, so resolve() does not apply here. -->
+					<!-- eslint-disable svelte/no-navigation-without-resolve -->
 					<a
-						href="https://github.com/leaningtech/browsercode/issues/new"
+						href={NEW_ISSUE_URL}
 						target="_blank"
 						rel="noopener noreferrer"
 						onclick={() => trackEvent('Clicked Help', { action: 'report-bug' })}
@@ -320,6 +323,7 @@
 						</span>
 						<span class="flex-1 truncate">Report a bug</span>
 					</a>
+					<!-- eslint-enable svelte/no-navigation-without-resolve -->
 				</div>
 			</div>
 		</div>

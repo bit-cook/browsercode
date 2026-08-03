@@ -6,21 +6,23 @@
 
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
-	import { bootCLI } from '$lib/utils/main';
+	import { bootCLI } from '$lib/agents/boot';
 	import { openTour } from '$lib/stores/stepper.svelte';
 	import { toolItems } from '$lib/config/tools';
 	import { requestSingleTabLock } from '$lib/utils/tabLock';
-	import {
-		navigateWithLeaveGuard,
-		consumeIntentionalNavigation
-	} from '$lib/stores/leaveWarning.svelte';
-	import { PortalState, type PortalUpdate } from '$lib/stores/portals.svelte';
+	import { watchIsMobile } from '$lib/utils/viewport';
+	import { navigateWithLeaveGuard, installLeaveGuard } from '$lib/stores/leaveWarning.svelte';
+	import { PortalState } from '$lib/stores/portals.svelte';
+	import ZenToggle from '$lib/components/ZenToggle.svelte';
+	import { zenState } from '$lib/stores/zen.svelte';
 
-	let isPortalVisible = true;
+	let isPortalVisible = $state(true);
+	/** The div the pod's terminal attaches to, rendered by Terminal.svelte. */
+	let consoleEl = $state<HTMLElement | null>(null);
 
-	let portalFraction = 0.5;
-	let isDragging = false;
-	let containerEl: HTMLElement | null = null;
+	let portalFraction = $state(0.5);
+	let isDragging = $state(false);
+	let containerEl = $state<HTMLElement | null>(null);
 
 	function startDrag(e: MouseEvent) {
 		e.preventDefault();
@@ -49,12 +51,12 @@
 		window.addEventListener('mouseup', onUp);
 	}
 
-	let isMobile = false;
-	let activeMobileView: 'terminal' | 'preview' = 'terminal';
+	let isMobile = $state(false);
+	let activeMobileView = $state<'terminal' | 'preview'>('terminal');
 
 	// Auto-show the preview on desktop, switch to it on mobile (first portal only), and hide
-	// the pane again when the last portal goes away — agents-specific; the IDE shell instead
-	// pins its preview to the framework's declared app port.
+	// the pane again when the last portal goes away; the IDE shell instead pins its preview
+	// to the framework's declared app port.
 	const portal = new PortalState({
 		onActivate: (count) => {
 			if (!isMobile) isPortalVisible = true;
@@ -62,28 +64,30 @@
 		},
 		onEmpty: () => (isPortalVisible = false)
 	});
-	let showToolMenu = false;
-	let showDuplicateTabWarning = false;
-	let closeFallback = false;
+	let showToolMenu = $state(false);
+	let showDuplicateTabWarning = $state(false);
+	let closeFallback = $state(false);
+	// Deliberately not state: assigned once at boot and only called from the unmount cleanup.
 	let releaseTabLock: () => void = () => {};
-	let showTerminalTip = false;
+	let disposeLeaveGuard: () => void = () => {};
+	let showTerminalTip = $state(false);
 
 	// Same reveal treatment as the landing page's About panel: starts closed so the transition
 	// actually animates in on arrival, rather than snapping straight to open.
-	let entered = false;
+	let entered = $state(false);
 
 	function dismissTerminalTip() {
 		showTerminalTip = false;
 	}
 
-	// Any keypress means they've already found the terminal — no need to keep the tip up.
+	// Any keypress means they've already found the terminal; no need to keep the tip up.
 	function handleAnyKeydown() {
 		if (showTerminalTip) dismissTerminalTip();
 	}
 
 	function attemptCloseTab() {
 		window.close();
-		// Browsers only let scripts close tabs they themselves opened — if we're still here
+		// Browsers only let scripts close tabs they themselves opened; If we're still here
 		// shortly after, that didn't work, so tell the user to close it manually instead.
 		setTimeout(() => {
 			closeFallback = true;
@@ -113,32 +117,14 @@
 		showToolMenu = false;
 	}
 
-	function updateIsMobile() {
-		isMobile = window.matchMedia('(max-width: 768px)').matches;
-	}
-
-	// Only browsers get to show text here, and only their own generic wording — the custom
-	// "your work will be lost" copy is reserved for in-app navigation via the leave-warning modal.
-	// A `window.location.href` assignment fires this same event, so navigation we already
-	// confirmed in-app is marked "intentional" and skipped here to avoid a duplicate prompt —
-	// this only fires for real browser-driven unloads: tab close, refresh, back/forward, or a
-	// typed URL.
-	function handleBeforeUnload(event: BeforeUnloadEvent) {
-		if (consumeIntentionalNavigation()) return;
-		event.preventDefault();
-		event.returnValue = '';
-	}
-
 	onMount(() => {
-		updateIsMobile();
-		const mql = window.matchMedia('(max-width: 768px)');
-		mql.addEventListener('change', updateIsMobile);
+		const unwatchIsMobile = watchIsMobile((mobile) => (isMobile = mobile));
 		requestAnimationFrame(() => {
 			entered = true;
 		});
 
-		// Two tabs booting the same agent would both write to the same BrowserPod storage key —
-		// claim an exclusive, tab-lifetime lock first and only boot if we actually got it.
+		// Two tabs booting the same agent would both write to the same BrowserPod storage key;
+		// Claim an exclusive, tab-lifetime lock first and only boot if we actually got it.
 		const tool = getActiveTool();
 		const lock = requestSingleTabLock(`agent-session:${tool}`);
 		releaseTabLock = lock.release;
@@ -149,34 +135,26 @@
 				return;
 			}
 
-			// Only warn on tab close/refresh/back-button once a session is actually running here —
-			// the duplicate-tab case above has nothing booted, so there's no work to lose.
-			window.addEventListener('beforeunload', handleBeforeUnload);
+			// Only warn on tab close/refresh/back-button once a session is actually running here;
+			// The duplicate-tab case above has nothing booted, so there's no work to lose.
+			disposeLeaveGuard = installLeaveGuard();
 
-			// Shown on every boot, not just the first ever visit — it's an easy thing to miss.
+			// Shown on every boot, not just the first ever visit.
 			showTerminalTip = true;
 
-			bootCLI((update: PortalUpdate | string) => {
-				if (typeof update === 'string') {
-					let parsed: URL;
-					try {
-						parsed = new URL(update);
-					} catch {
-						return;
-					}
-					const port = Number(parsed.port);
-					if (!Number.isInteger(port) || port <= 0) return;
-					portal.apply({ port, url: update, active: true });
-					return;
-				}
+			if (!consoleEl) {
+				console.error('Terminal container is not ready yet');
+				return;
+			}
 
-				portal.apply(update);
-			}, tool);
+			bootCLI(tool, consoleEl, portal.apply);
 		});
 
 		return () => {
-			mql.removeEventListener('change', updateIsMobile);
-			window.removeEventListener('beforeunload', handleBeforeUnload);
+			// Never leave the global chrome hidden after navigating away from an agent session.
+			zenState.on = false;
+			unwatchIsMobile();
+			disposeLeaveGuard();
 			portal.dispose();
 			releaseTabLock();
 		};
@@ -229,8 +207,18 @@
 				class="absolute inset-0 bg-black"
 				class:hidden={isMobile && activeMobileView !== 'terminal'}
 			>
-				<Terminal />
+				<Terminal bind:consoleEl />
 			</div>
+
+			<!-- Zen toggle: the agents view has no icon rail, so this floating control is the
+			     always-visible way in and out. Desktop only. -->
+			{#if !isMobile}
+				<ZenToggle
+					baseClass="absolute bottom-4 left-4 z-30 flex items-center justify-center rounded-lg border p-2 backdrop-blur-sm transition"
+					activeClass="border-bc-azure/40 bg-bc-azure/20 text-bc-azure"
+					idleClass="border-white/10 bg-black/40 text-white/40 hover:bg-black/60 hover:text-white/70"
+				/>
+			{/if}
 
 			<!-- Non-blocking tip: this is a real terminal, not a GUI — clicks alone won't do much. -->
 			{#if showTerminalTip && !(isMobile && activeMobileView !== 'terminal')}
@@ -282,6 +270,8 @@
 				>
 					<Portal
 						src={portal.url}
+						frameStatus={portal.frameStatus}
+						onFrameLoad={portal.reportFrameLoaded}
 						portals={portal.portals}
 						selectedPort={portal.selectedPort}
 						showMenu={portal.showMenu}
@@ -294,6 +284,7 @@
 						onOpenNewTab={portal.openInNewTab}
 						onShowQrCode={portal.showQRCode}
 						onCloseOverlays={portal.closeOverlays}
+						onQrResult={portal.reportQrResult}
 					/>
 				</div>
 			{:else if isMobile && portal.portals.length > 0 && activeMobileView === 'preview'}
@@ -301,6 +292,8 @@
 				<div class="absolute inset-0 overflow-hidden">
 					<Portal
 						src={portal.url}
+						frameStatus={portal.frameStatus}
+						onFrameLoad={portal.reportFrameLoaded}
 						portals={portal.portals}
 						selectedPort={portal.selectedPort}
 						showMenu={portal.showMenu}
@@ -313,6 +306,7 @@
 						onOpenNewTab={portal.openInNewTab}
 						onShowQrCode={portal.showQRCode}
 						onCloseOverlays={portal.closeOverlays}
+						onQrResult={portal.reportQrResult}
 					/>
 				</div>
 			{/if}

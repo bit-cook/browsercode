@@ -4,20 +4,39 @@ export const leaveWarningState = $state<{ open: boolean; pendingPath: string }>(
 });
 
 // A `window.location.href` assignment triggers the browser's own `beforeunload` event just like
-// a refresh or a closed tab does. Pages that listen for it (to catch tab-close/refresh/back-
-// forward) call `consumeIntentionalNavigation()` there to skip their dialog for navigations we
-// triggered ourselves — the in-app leave-warning modal already asked, so a second native prompt
-// right after would just be a confusing duplicate.
+// a refresh or a closed tab does. `installLeaveGuard()` below consumes this flag to skip the
+// native prompt for navigations we triggered ourselves — the in-app leave-warning modal already
+// asked, so a second native prompt right after would just be a confusing duplicate.
 let intentionalNavigation = false;
 
 export function markIntentionalNavigation() {
 	intentionalNavigation = true;
 }
 
-export function consumeIntentionalNavigation(): boolean {
+function consumeIntentionalNavigation(): boolean {
 	const wasIntentional = intentionalNavigation;
 	intentionalNavigation = false;
 	return wasIntentional;
+}
+
+/**
+ * Installs the native unload prompt for a page with a live session, and returns a disposer.
+ * Only browsers get to show text here, and only their own generic wording; The custom
+ * "your work will be lost" copy is reserved for in-app navigation via the leave-warning modal.
+ * A `window.location.href` assignment fires this same event, so navigation we already
+ * confirmed in-app is marked "intentional" and skipped here to avoid a duplicate prompt.
+ * This only fires for real browser-driven unloads: tab close, refresh, back/forward, or a
+ * typed URL.
+ */
+export function installLeaveGuard(): () => void {
+	function handleBeforeUnload(event: BeforeUnloadEvent) {
+		if (consumeIntentionalNavigation()) return;
+		event.preventDefault();
+		event.returnValue = '';
+	}
+
+	window.addEventListener('beforeunload', handleBeforeUnload);
+	return () => window.removeEventListener('beforeunload', handleBeforeUnload);
 }
 
 /**

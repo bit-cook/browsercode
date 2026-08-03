@@ -1,8 +1,13 @@
-/** A portal event from BrowserPod: a service came up (or went away) on a port. */
-export type PortalUpdate = { port: number; url: string | null; active: boolean };
+import type { PortalUpdate } from '$lib/pod/portals';
 
 /** A live preview target as rendered by Portal.svelte's port selector. */
 export type PortalItem = { port: number; url: string };
+
+/**
+ * How far the preview frame has got with the selected portal. `waiting` keeps the iframe unmounted
+ * until the dev server answers, `loading` while its document arrives, `ready` once it has painted.
+ */
+export type FrameStatus = 'waiting' | 'loading' | 'ready';
 
 export type PortalStateOptions = {
 	/**
@@ -28,12 +33,15 @@ export class PortalState {
 	selectedPort = $state<number | null>(null);
 	/** Preview URL of the selected portal; '' when none. */
 	url = $state('');
+	frameStatus = $state<FrameStatus>('waiting');
 	showMenu = $state(false);
 	showInfo = $state(false);
 	copied = $state(false);
 	qrError = $state('');
 
 	private copiedTimeout: ReturnType<typeof setTimeout> | undefined;
+	/** Fallback for a `load` that never fires. */
+	private frameReadyTimer: ReturnType<typeof setTimeout> | undefined;
 
 	constructor(private options: PortalStateOptions = {}) {}
 
@@ -49,10 +57,8 @@ export class PortalState {
 			this.portals = next;
 
 			const preferred = this.options.preferredPort?.();
-			if (preferred === undefined || update.port === preferred || this.selectedPort === null) {
-				this.selectedPort = update.port;
-				this.url = update.url;
-			}
+			if (preferred === undefined || update.port === preferred || this.selectedPort === null)
+				this.selectUrl(update.port, update.url);
 			this.options.onActivate?.(next.length);
 			return;
 		}
@@ -65,8 +71,7 @@ export class PortalState {
 			!next.some((item) => item.port === this.selectedPort)
 		) {
 			const fallback = next[0];
-			this.selectedPort = fallback?.port ?? null;
-			this.url = fallback?.url ?? '';
+			this.selectUrl(fallback?.port ?? null, fallback?.url ?? '');
 		}
 		if (next.length === 0) this.options.onEmpty?.();
 	};
@@ -75,10 +80,23 @@ export class PortalState {
 	onPortChange = (event: Event): void => {
 		const value = Number((event.currentTarget as HTMLSelectElement).value);
 		if (!Number.isInteger(value)) return;
-		this.selectedPort = value;
-		this.url = this.portals.find((item) => item.port === value)?.url ?? '';
+		this.selectUrl(value, this.portals.find((item) => item.port === value)?.url ?? '');
 		this.closeOverlays();
 	};
+
+	/**
+	 * Points the preview at a port. Unchanged URLs return early so a re-emitted portal does not
+	 * restart the wait.
+	 */
+	private selectUrl(port: number | null, url: string): void {
+		this.selectedPort = port;
+		if (url === this.url) return;
+		this.url = url;
+		// Unmount while waiting, so the frame re-navigates once this URL is ready.
+		this.frameStatus = 'waiting';
+		clearTimeout(this.frameReadyTimer);
+		if (url) void this.showFrameWhenServing(url);
+	}
 
 	toggleMenu = (): void => {
 		this.showMenu = !this.showMenu;
@@ -97,6 +115,11 @@ export class PortalState {
 		this.showInfo = true;
 	};
 
+	/** Records what Portal.svelte's QR render reported; it owns the canvas, this owns the message. */
+	reportQrResult = (error: string | null): void => {
+		this.qrError = error ?? '';
+	};
+
 	openInNewTab = (): void => {
 		if (!this.url) return;
 		this.showMenu = false;
@@ -112,8 +135,51 @@ export class PortalState {
 		this.copiedTimeout = setTimeout(() => (this.copied = false), 1200);
 	};
 
-	/** Clears the copied-flash timer; call on host unmount. */
+	/** Reports that the framed document loaded. Ignored unless that frame is still the current one. */
+	reportFrameLoaded = (): void => {
+		if (this.frameStatus !== 'loading') return;
+		clearTimeout(this.frameReadyTimer);
+		this.frameStatus = 'ready';
+	};
+
+	/** Clears timers and stops any pending wait. */
 	dispose = (): void => {
 		clearTimeout(this.copiedTimeout);
+		clearTimeout(this.frameReadyTimer);
+		this.url = '';
+		this.frameStatus = 'waiting';
 	};
+
+	/** Polls until the dev server answers, then shows the frame. Shows it anyway once out of tries. */
+	private async showFrameWhenServing(url: string): Promise<void> {
+		for (let attempt = 0; attempt < PROBE_ATTEMPTS; attempt++) {
+			if (this.url !== url) return; // selection moved on
+			if (await serving(url)) break;
+			await new Promise((resolve) => setTimeout(resolve, PROBE_INTERVAL_MS));
+		}
+		if (this.url !== url) return;
+		this.frameStatus = 'loading';
+		// Advance anyway if `load` never fires, so the loader cannot stick.
+		this.frameReadyTimer = setTimeout(() => (this.frameStatus = 'ready'), FRAME_READY_DEADLINE_MS);
+	}
+}
+
+const PROBE_INTERVAL_MS = 1000;
+/** A real response takes under a second; a starting server holds the connection ~2.5min. */
+const PROBE_TIMEOUT_MS = 5000;
+const PROBE_ATTEMPTS = 60;
+const FRAME_READY_DEADLINE_MS = 8000;
+
+/** True once the dev server answers. Bounded: a starting server can accept and never reply. */
+async function serving(url: string): Promise<boolean> {
+	const abort = new AbortController();
+	const timer = setTimeout(() => abort.abort(), PROBE_TIMEOUT_MS);
+	try {
+		await fetch(url, { mode: 'no-cors', cache: 'no-store', signal: abort.signal });
+		return true;
+	} catch {
+		return false;
+	} finally {
+		clearTimeout(timer);
+	}
 }

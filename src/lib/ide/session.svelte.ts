@@ -6,11 +6,18 @@ import {
 	type FrameworkConfig,
 	type FrameworkId
 } from '$lib/config/frameworks';
-import { POD_HOME, readPodFile, writePodFile, writePodBinaryFile, writeToTerminal } from './pod-fs';
+import {
+	POD_HOME,
+	readPodFile,
+	writePodFile,
+	writePodBinaryFile,
+	writeToTerminal
+} from '$lib/pod/fs';
 import { ANSI, BP_RC, BP_RC_PATH } from './shell-rc';
+import { patchClonedManifest } from './native-deps';
 import { fetchRepoTree } from '$lib/github/api';
 import { trackEvent } from '$lib/utils/useLazyTracking';
-import type { PortalUpdate } from '$lib/stores/portals.svelte';
+import type { PortalUpdate } from '$lib/pod/portals';
 
 // Re-exported so the boot-owning routes keep a single import site for session types.
 export type { PortalUpdate };
@@ -43,6 +50,8 @@ export class IdeSession {
 	openFiles = $state<OpenFile[]>([]);
 	/** Path of the active tab; '' when no tab is open. */
 	selectedFile = $state('');
+	/** Pending scroll-to-location (1-based) the editor consumes once the file's model is active. */
+	revealRequest = $state<{ path: string; line: number; column: number } | null>(null);
 	loading = $state(true);
 	isSaving = $state(false);
 	hasPortal = $state(false);
@@ -52,9 +61,12 @@ export class IdeSession {
 
 	/** Which boot path produced this session; drives the label, appPort and workdir. */
 	mode = $state<'framework' | 'github'>('framework');
-	/** Directory the project lives in inside the pod; pod-fs paths resolve against it. */
+	/** Directory the project lives in inside the pod; pod file paths resolve against it. */
 	workdir = POD_HOME;
 	private githubSlug = $state('');
+	/** Repo URL this session clones from: `git clone` appends `.git`, bug reports link it as-is. */
+	private githubUrl = $state('');
+	private githubRef = $state('');
 
 	pod: BrowserPod | null = null;
 	outputTerminal: Terminal | null = null;
@@ -78,6 +90,12 @@ export class IdeSession {
 	/** Label shown in the IDE shell; framework label, or owner/repo[/dir] in GitHub mode. */
 	get displayLabel(): string {
 		return this.mode === 'github' ? this.githubSlug : this.config.label;
+	}
+
+	/** What this session cloned; null in framework mode. Carried into bug reports. */
+	get repo(): { url: string; ref: string } | null {
+		if (this.mode !== 'github' || !this.githubUrl) return null;
+		return { url: this.githubUrl, ref: this.githubRef };
 	}
 
 	/** Preview is pinned to this port when set. Unknown for arbitrary GitHub repos. */
@@ -168,6 +186,8 @@ export class IdeSession {
 		this.booting = true;
 		this.mode = 'github';
 		this.githubSlug = dir ? `${owner}/${repo}/${dir}` : `${owner}/${repo}`;
+		this.githubUrl = `https://github.com/${owner}/${repo}`;
+		this.githubRef = ref;
 		const token = ++this.bootToken;
 		try {
 			this.bootStage = 'booting';
@@ -194,13 +214,18 @@ export class IdeSession {
 			// git manages its own colors (no TTY here, so none) — forcing COLOR_ENV would change nothing.
 			await this.runInOutput(
 				'git',
-				['clone', '--depth', '1', '--branch', ref, `https://github.com/${owner}/${repo}.git`],
+				['clone', '--depth', '1', '--branch', ref, `${this.githubUrl}.git`],
 				{ cwd: POD_HOME, color: false }
 			);
 			if (this.cancelled(token)) return;
 
 			// The working tree exists now — let the editor read from the pod.
 			this.podReady = true;
+
+			// Patch package.json before the first tab opens, so the editor shows the
+			// manifest install will actually see.
+			await this.applyManifestPatches();
+			if (this.cancelled(token)) return;
 
 			const initialFile = this.projectFiles[0];
 			if (initialFile) await this.openFile(initialFile);
@@ -309,6 +334,26 @@ export class IdeSession {
 			await writePodFile(pod, BP_RC_PATH, BP_RC);
 		} catch (error) {
 			console.warn('Could not write shell rc:', error);
+		}
+	}
+
+	private async applyManifestPatches(): Promise<void> {
+		if (!this.pod) return;
+		const manifestPath = `${this.workdir}/package.json`;
+		try {
+			const raw = await readPodFile(this.pod, manifestPath);
+			const result = patchClonedManifest(raw);
+			if (!result) {
+				this.termWrite(`\r\n${ANSI.dim}No dependency patches apply to this repo.${ANSI.reset}\r\n`);
+				return;
+			}
+			await writePodFile(this.pod, manifestPath, result.patched);
+			for (const note of result.notes) this.termWrite(`\r\n${ANSI.dim}${note}${ANSI.reset}\r\n`);
+		} catch (error) {
+			this.termWrite(
+				`\r\n${ANSI.coral}Could not patch package.json; installing the repo as cloned.${ANSI.reset}\r\n`
+			);
+			console.warn('Could not patch the cloned manifest:', error);
 		}
 	}
 
@@ -462,6 +507,15 @@ export class IdeSession {
 		}
 	}
 
+	/**
+	 * Opens `path` as a preview tab and reveals `line`/`column` (1-based). The request is set
+	 * before opening so it survives an already-open file, applied once the model attaches.
+	 */
+	async openAt(path: string, line: number, column = 1): Promise<void> {
+		this.revealRequest = { path, line, column };
+		await this.openFile(path, true);
+	}
+
 	/** Promotes a preview tab to a permanent one; safe to call while the tab is still loading. */
 	pinFile(path: string): void {
 		const entry = this.openFiles.find((file) => file.path === path);
@@ -489,6 +543,12 @@ export class IdeSession {
 	async saveFile(path = this.selectedFile): Promise<void> {
 		const entry = this.openFiles.find((file) => file.path === path);
 		if (entry) await this.saveEntry(entry);
+	}
+
+	/** Flushes every tab with unsaved edits to the pod. */
+	async saveAll(): Promise<void> {
+		const dirty = this.openFiles.filter((file) => file.content !== file.savedContent);
+		await Promise.all(dirty.map((entry) => this.saveEntry(entry)));
 	}
 
 	private async saveEntry(entry: OpenFile): Promise<void> {

@@ -4,12 +4,20 @@
 	import Portal from '$lib/components/Portal.svelte';
 	import EditorPane from '$lib/components/ide/EditorPane.svelte';
 	import FileTreePanel from '$lib/components/ide/FileTreePanel.svelte';
+	import SearchPanel from '$lib/components/ide/SearchPanel.svelte';
 	import TerminalTabs from '$lib/components/ide/TerminalTabs.svelte';
 	import LoadingScene from '$lib/components/ide/LoadingScene.svelte';
 	import { fade } from 'svelte/transition';
 	import type { BootStage, IdeSession } from '$lib/ide/session.svelte';
-	import { PortalState, type PortalUpdate } from '$lib/stores/portals.svelte';
-	import { consumeIntentionalNavigation } from '$lib/stores/leaveWarning.svelte';
+	import { downloadProject } from '$lib/ide/download';
+	import { PortalState } from '$lib/stores/portals.svelte';
+	import type { PortalUpdate } from '$lib/pod/portals';
+	import { installLeaveGuard } from '$lib/stores/leaveWarning.svelte';
+	import { watchIsMobile } from '$lib/utils/viewport';
+	import { bugReportUrl } from '$lib/utils/bug-report';
+	import { trackEvent } from '$lib/utils/useLazyTracking';
+	import ZenToggle from '$lib/components/ZenToggle.svelte';
+	import { zenState } from '$lib/stores/zen.svelte';
 
 	// Boot-log lines the preview loader streams, per boot mode.
 	const BOOT_LOG: Record<'framework' | 'github', string[]> = {
@@ -51,14 +59,32 @@
 	} = $props();
 
 	let isCompatibleBrowser = $state(true);
-	let activePanel = $state<'files' | null>('files');
+	let downloading = $state(false);
+
+	async function handleDownload() {
+		if (downloading || !session.podReady) return;
+		downloading = true;
+		try {
+			await downloadProject(session);
+		} catch (error) {
+			console.error('Failed to download project:', error);
+		} finally {
+			downloading = false;
+		}
+	}
+
+	let activePanel = $state<'files' | 'search' | null>('files');
 	let fileTree = $state<{ startCreate: (kind: 'file' | 'folder') => void } | null>(null);
 
 	// Frameworks with a declared app port keep the preview pinned to it; other
 	// ports stay reachable through the port selector.
 	const portal = new PortalState({ preferredPort: () => session.appPort });
 
-	let previewLive = $derived(portal.portals.length > 0);
+	// Recomputed as the preview moves ports, so a report always carries the live portal URL.
+	let bugReportHref = $derived(bugReportUrl({ repo: session.repo, previewUrl: portal.url }));
+
+	// Live once the framed document loaded, so the loader covers the server's start and first paint.
+	let previewLive = $derived(portal.frameStatus === 'ready');
 	let loaderVisible = $state(true);
 	$effect(() => {
 		if (!previewLive) loaderVisible = true;
@@ -140,11 +166,13 @@
 	}
 
 	// ── Mobile detection ──────────────────────────────────────────────────────
-	function updateIsMobile() {
-		isMobile = window.matchMedia('(max-width: 768px)').matches;
-		// Close the side panel by default on mobile so it doesn't cover the view
-		if (isMobile && activePanel) activePanel = null;
-	}
+	onMount(() =>
+		watchIsMobile((mobile) => {
+			isMobile = mobile;
+			// Close the side panel by default on mobile so it doesn't cover the view
+			if (isMobile && activePanel) activePanel = null;
+		})
+	);
 
 	$effect(() => {
 		if (activeMobileView === 'terminal') {
@@ -153,27 +181,8 @@
 	});
 
 	// ── Boot ──────────────────────────────────────────────────────────────────
-	onMount(() => {
-		updateIsMobile();
-		const mql = window.matchMedia('(max-width: 768px)');
-		const onChange = () => updateIsMobile();
-		mql.addEventListener('change', onChange);
-		return () => mql.removeEventListener('change', onChange);
-	});
-
-	// Catches tab close/refresh/back-forward while a pod is running here — the in-app leave-warning
-	// modal (triggered via the sidebar) already asks and marks the navigation intentional, so this
-	// only fires for real browser-driven unloads.
-	function handleBeforeUnload(event: BeforeUnloadEvent) {
-		if (consumeIntentionalNavigation()) return;
-		event.preventDefault();
-		event.returnValue = '';
-	}
-
-	onMount(() => {
-		window.addEventListener('beforeunload', handleBeforeUnload);
-		return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-	});
+	// Catches tab close/refresh/back-forward while a pod is running here.
+	onMount(() => installLeaveGuard());
 
 	onMount(async () => {
 		if (typeof Atomics?.waitAsync !== 'function') {
@@ -192,6 +201,8 @@
 	});
 
 	onDestroy(() => {
+		// Never leave the global chrome hidden after navigating away from /ide.
+		zenState.on = false;
 		portal.dispose();
 		session.shutdown();
 	});
@@ -221,7 +232,7 @@
 		class:is-mobile={isMobile}
 		bind:this={bodyEl}
 	>
-		<!-- Icon rail -->
+		<!-- Icon rail: panel navigators anchor to the top, global view toggles to the bottom. -->
 		<aside class="flex w-10 shrink-0 flex-col border-r border-bc-mist/10 bg-bc-navy">
 			<div class="flex flex-col gap-0.5 p-1 pt-2">
 				<button
@@ -233,6 +244,36 @@
 				>
 					<Icon icon="mingcute:file-line" width="18" height="18" />
 				</button>
+				<button
+					onclick={() => (activePanel = activePanel === 'search' ? null : 'search')}
+					class="flex items-center justify-center rounded p-1.5 transition {activePanel === 'search'
+						? 'bg-bc-azure/15 text-bc-azure'
+						: 'text-zinc-600 hover:bg-white/5 hover:text-zinc-300'}"
+					title="Search"
+				>
+					<Icon icon="mingcute:search-line" width="18" height="18" />
+				</button>
+			</div>
+			<div class="mt-auto flex flex-col gap-0.5 p-1 pb-2">
+				<!-- The tracker is an external URL, so resolve() does not apply here. -->
+				<!-- eslint-disable svelte/no-navigation-without-resolve -->
+				<a
+					href={bugReportHref}
+					target="_blank"
+					rel="noopener noreferrer"
+					title="Report a bug"
+					aria-label="Report a bug"
+					onclick={() => trackEvent('Clicked Report Bug', { mode: session.mode })}
+					class="flex items-center justify-center rounded p-1.5 text-zinc-600 transition hover:bg-bc-coral/10 hover:text-bc-coral"
+				>
+					<Icon icon="mingcute:bug-line" width="18" height="18" />
+				</a>
+				<!-- eslint-enable svelte/no-navigation-without-resolve -->
+				<ZenToggle
+					baseClass="flex items-center justify-center rounded p-1.5 transition"
+					activeClass="bg-bc-azure/15 text-bc-azure"
+					idleClass="text-zinc-600 hover:bg-white/5 hover:text-zinc-300"
+				/>
 			</div>
 		</aside>
 
@@ -246,44 +287,69 @@
 			></button>
 		{/if}
 
-		<!-- Side panel: file tree -->
+		<!-- Side panel: files or search -->
 		{#if activePanel}
 			<div
 				class="side-panel flex shrink-0 flex-col bg-bc-navy"
 				style="width: {isMobile ? 240 : filePanelWidth}px;"
 			>
-				<div class="flex items-center justify-between border-b border-bc-mist/10 px-3 py-1.5">
-					<span class="text-[10px] font-medium tracking-widest text-zinc-600 uppercase">
-						Files
-					</span>
-					<div class="flex items-center gap-0.5">
-						<button
-							type="button"
-							title="New file"
-							disabled={!session.podReady}
-							onclick={() => fileTree?.startCreate('file')}
-							class="rounded p-1 text-zinc-600 transition hover:bg-white/5 hover:text-zinc-300 disabled:pointer-events-none disabled:opacity-40"
-						>
-							<Icon icon="mingcute:file-new-line" width="13" height="13" />
-						</button>
-						<button
-							type="button"
-							title="New folder"
-							disabled={!session.podReady}
-							onclick={() => fileTree?.startCreate('folder')}
-							class="rounded p-1 text-zinc-600 transition hover:bg-white/5 hover:text-zinc-300 disabled:pointer-events-none disabled:opacity-40"
-						>
-							<Icon icon="mingcute:new-folder-line" width="13" height="13" />
-						</button>
+				{#if activePanel === 'files'}
+					<div class="flex items-center justify-between border-b border-bc-mist/10 px-3 py-1.5">
+						<span class="text-[10px] font-medium tracking-widest text-zinc-600 uppercase">
+							Project files
+						</span>
+						<div class="flex items-center gap-0.5">
+							<button
+								type="button"
+								title="New file"
+								disabled={!session.podReady}
+								onclick={() => fileTree?.startCreate('file')}
+								class="rounded p-1 text-zinc-600 transition hover:bg-white/5 hover:text-zinc-300 disabled:pointer-events-none disabled:opacity-40"
+							>
+								<Icon icon="mingcute:file-new-line" width="13" height="13" />
+							</button>
+							<button
+								type="button"
+								title="New folder"
+								disabled={!session.podReady}
+								onclick={() => fileTree?.startCreate('folder')}
+								class="rounded p-1 text-zinc-600 transition hover:bg-white/5 hover:text-zinc-300 disabled:pointer-events-none disabled:opacity-40"
+							>
+								<Icon icon="mingcute:new-folder-line" width="13" height="13" />
+							</button>
+							<button
+								type="button"
+								title={downloading ? 'Zipping project…' : 'Download this project as a zip'}
+								disabled={!session.podReady || downloading}
+								onclick={handleDownload}
+								class="rounded p-1 text-zinc-600 transition hover:bg-white/5 hover:text-zinc-300 disabled:pointer-events-none disabled:opacity-40"
+							>
+								<Icon
+									icon={downloading ? 'mingcute:loading-line' : 'mingcute:download-line'}
+									class={downloading ? 'animate-spin' : ''}
+									width="13"
+									height="13"
+								/>
+							</button>
+						</div>
 					</div>
-				</div>
-				<div class="flex-1 overflow-y-auto p-1.5">
-					<FileTreePanel
-						bind:this={fileTree}
-						{session}
-						onFileOpen={() => isMobile && (activePanel = null)}
-					/>
-				</div>
+					<div class="flex-1 overflow-y-auto p-1.5">
+						<FileTreePanel
+							bind:this={fileTree}
+							{session}
+							onFileOpen={() => isMobile && (activePanel = null)}
+						/>
+					</div>
+				{:else if activePanel === 'search'}
+					<div class="flex items-center border-b border-bc-mist/10 px-3 py-1.5">
+						<span class="text-[10px] font-medium tracking-widest text-zinc-600 uppercase">
+							Search
+						</span>
+					</div>
+					<div class="min-h-0 flex-1">
+						<SearchPanel {session} onFileOpen={() => isMobile && (activePanel = null)} />
+					</div>
+				{/if}
 			</div>
 
 			<!-- Divider: side panel / editor -->
@@ -382,6 +448,8 @@
 					{#if portal.portals.length > 0}
 						<Portal
 							src={portal.url}
+							frameStatus={portal.frameStatus}
+							onFrameLoad={portal.reportFrameLoaded}
 							portals={portal.portals}
 							selectedPort={portal.selectedPort}
 							showMenu={portal.showMenu}
@@ -394,6 +462,7 @@
 							onOpenNewTab={portal.openInNewTab}
 							onShowQrCode={portal.showQRCode}
 							onCloseOverlays={portal.closeOverlays}
+							onQrResult={portal.reportQrResult}
 						/>
 					{/if}
 					<!-- Loader overlays the preview column, then cross-dissolves out into the iframe. -->

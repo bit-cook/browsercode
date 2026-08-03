@@ -1,13 +1,36 @@
 <script lang="ts">
 	import Icon from '@iconify/svelte';
 	import QRCode from 'qrcode';
+	import type { FrameStatus, PortalItem } from '$lib/stores/portals.svelte';
 
-	type PortalItem = { port: number; url: string };
+	type Props = {
+		src?: string;
+		/** Gates the iframe; it mounts once the dev server has answered. */
+		frameStatus?: FrameStatus;
+		portals?: PortalItem[];
+		selectedPort?: number | null;
+		showMenu?: boolean;
+		showInfo?: boolean;
+		copied?: boolean;
+		/** Failure text for the QR panel. Owned by the caller, which sets it from `onQrResult`. */
+		qrError?: string;
+		onPortChange?: (event: Event) => void;
+		onToggleMenu?: () => void;
+		onCopyLink?: () => void;
+		onOpenNewTab?: () => void;
+		onShowQrCode?: () => void;
+		onCloseOverlays?: () => void;
+		/** Reports the QR render outcome; a message when it fails, null once one renders. */
+		onQrResult?: (error: string | null) => void;
+		/** Fires when the framed document loads. */
+		onFrameLoad?: () => void;
+	};
 
 	let {
 		src = '',
-		portals = [] as PortalItem[],
-		selectedPort = null as number | null,
+		frameStatus = 'waiting',
+		portals = [],
+		selectedPort = null,
 		showMenu = false,
 		showInfo = false,
 		copied = false,
@@ -17,22 +40,10 @@
 		onCopyLink,
 		onOpenNewTab,
 		onShowQrCode,
-		onCloseOverlays
-	} = $props<{
-		src?: string;
-		portals?: PortalItem[];
-		selectedPort?: number | null;
-		showMenu?: boolean;
-		showInfo?: boolean;
-		copied?: boolean;
-		qrError?: string;
-		onPortChange?: (event: Event) => void;
-		onToggleMenu?: () => void;
-		onCopyLink?: () => void;
-		onOpenNewTab?: () => void;
-		onShowQrCode?: () => void;
-		onCloseOverlays?: () => void;
-	}>();
+		onCloseOverlays,
+		onQrResult,
+		onFrameLoad
+	}: Props = $props();
 
 	let localQrCodeCanvas = $state<HTMLCanvasElement | null>(null);
 
@@ -46,9 +57,11 @@
 				errorCorrectionLevel: 'H',
 				color: { dark: '#000000', light: '#ffffff' }
 			});
+			// Clears a message left by an earlier failure; this render replaced that canvas.
+			onQrResult?.(null);
 		} catch (error) {
 			console.error('Failed to generate QR code:', error);
-			qrError = 'Unable to generate QR code';
+			onQrResult?.('Unable to generate QR code');
 		}
 	}
 
@@ -134,12 +147,18 @@
 		<!-- Content -->
 		{#if src}
 			<div class="relative min-h-0 flex-1">
-				<iframe
-					{src}
-					id="portal"
-					title="Portal content"
-					class="h-full min-h-0 w-full border-none bg-white"
-				></iframe>
+				<!-- Mounts once the dev server answers; an early navigation hangs and stays blank. -->
+				{#if frameStatus !== 'waiting'}
+					<iframe
+						{src}
+						id="portal"
+						title="Portal content"
+						onload={onFrameLoad}
+						class="h-full min-h-0 w-full border-none {frameStatus === 'ready'
+							? 'bg-white'
+							: 'bg-bc-navy'}"
+					></iframe>
+				{/if}
 
 				{#if showInfo}
 					<div
@@ -160,7 +179,10 @@
 						{#if qrError}
 							<div class="mt-3 text-center text-[12px] text-bc-coral">{qrError}</div>
 						{:else}
-							<div class="mt-3 max-w-50 truncate text-center text-[12px] text-white/40">
+							<!-- Wraps rather than truncates -->
+							<div
+								class="mt-3 w-full max-w-64 px-4 text-center text-[12px] break-all text-white/40"
+							>
 								{src}
 							</div>
 						{/if}
