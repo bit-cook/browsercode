@@ -6,21 +6,11 @@
 	let url = $state('');
 	let error = $state('');
 
-	const maxFieldHeight = 112;
-
-	// The field wraps so a long URL stays fully readable instead of scrolling out of view.
-	function fitToContent(el: HTMLTextAreaElement) {
-		el.style.height = 'auto';
-		el.style.height = `${Math.min(el.scrollHeight, maxFieldHeight)}px`;
-		el.style.overflowY = el.scrollHeight > maxFieldHeight ? 'auto' : 'hidden';
-	}
-
-	function handleInput(el: HTMLTextAreaElement) {
+	function handleInput(el: HTMLInputElement) {
 		error = '';
 		// A pasted URL can carry newlines or stray spaces; the field holds one value.
 		if (/\s/.test(el.value)) el.value = el.value.replace(/\s+/g, '');
 		url = el.value;
-		fitToContent(el);
 	}
 
 	// Resolves as you type, so the Clone action can show whether the URL is actually cloneable.
@@ -84,16 +74,46 @@
 		</div>
 
 		<div>
-			<div class="mb-2 text-[11px] font-medium tracking-widest text-bc-mist/40 uppercase">
-				Clone from GitHub
+			<div class="mb-2 flex items-center gap-2">
+				<span class="text-[11px] font-medium tracking-widest text-bc-mist/40 uppercase">
+					Clone from GitHub
+				</span>
+				<span class="group relative flex items-center">
+					<span
+						class="cursor-default rounded-full border border-bc-azure/30 bg-bc-azure/10 px-1.5 py-0.5 text-[9.5px] font-semibold tracking-wider text-bc-azure/85 uppercase"
+					>
+						Beta
+					</span>
+					<span
+						class="pointer-events-none absolute top-full left-0 z-50 mt-2 flex flex-col items-start opacity-0 transition-opacity duration-100 group-hover:opacity-100"
+					>
+						<span class="solid-panel ml-3 h-1.5 w-1.5 rotate-45 border-t border-l border-bc-mist/15"
+						></span>
+						<span
+							class="solid-panel -mt-px flex w-[26rem] max-w-[80vw] flex-col gap-2 rounded-md border border-bc-mist/15 px-3.5 py-3 text-[12.5px] leading-[1.6] text-zinc-300 shadow-[0_12px_40px_rgba(0,0,0,0.55)]"
+						>
+							<span>
+								Paste the GitHub URL of a working template, for example;
+								<span class="block font-mono text-[11.5px] break-all text-bc-mist">
+									github.com/vitejs/vite/tree/main/packages/create-vite/template-vanilla
+								</span>
+							</span>
+							<span class="text-zinc-400">
+								Browsing and editing a cloned repo works. Automatically building and running one is
+								still in beta.
+							</span>
+						</span>
+					</span>
+				</span>
 			</div>
-			<!-- Field and action share one shell so the growing URL never drags the button out of place. -->
+			<!-- Field and action share one shell, so the row keeps a fixed height whatever the URL length. -->
 			<label
-				class="glass-panel flex cursor-text items-center gap-1.5 rounded-xl border p-1.5 transition-colors focus-within:border-bc-azure/45 {error
+				class="glass-panel flex h-11 cursor-text items-center gap-1.5 rounded-xl border p-1.5 transition-colors focus-within:border-bc-azure/45 {error
 					? 'border-bc-coral/45'
 					: 'border-bc-mist/12'}"
 			>
-				<textarea
+				<input
+					type="text"
 					value={url}
 					oninput={(e) => handleInput(e.currentTarget)}
 					onkeydown={(e) => {
@@ -101,14 +121,15 @@
 						e.preventDefault();
 						openRepo();
 					}}
-					rows="1"
 					spellcheck="false"
+					autocomplete="off"
+					autocapitalize="off"
 					aria-label="GitHub repository URL"
 					aria-invalid={error ? 'true' : undefined}
 					aria-describedby={error ? 'clone-error' : undefined}
 					placeholder="github.com/owner/repo/tree/main/dir"
-					class="min-w-0 flex-1 resize-none overflow-hidden bg-transparent px-2 py-1 text-[13px] leading-5 break-all text-zinc-200 outline-none placeholder:text-white/25"
-				></textarea>
+					class="min-w-0 flex-1 bg-transparent px-2 py-1 text-[13px] leading-5 text-ellipsis whitespace-nowrap text-zinc-200 outline-none placeholder:text-white/25"
+				/>
 				<!-- Fills in only once the URL resolves to a repo: the action reflects what the field holds. -->
 				<button
 					onclick={openRepo}
