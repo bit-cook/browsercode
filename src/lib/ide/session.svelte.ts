@@ -14,6 +14,7 @@ import {
 	writeToTerminal
 } from '$lib/pod/fs';
 import { ANSI, BP_RC, BP_RC_PATH } from './shell-rc';
+import { patchClonedManifest } from './native-deps';
 import { fetchRepoTree } from '$lib/github/api';
 import { trackEvent } from '$lib/utils/useLazyTracking';
 import type { PortalUpdate } from '$lib/pod/portals';
@@ -221,6 +222,11 @@ export class IdeSession {
 			// The working tree exists now — let the editor read from the pod.
 			this.podReady = true;
 
+			// Patch package.json before the first tab opens, so the editor shows the
+			// manifest install will actually see.
+			await this.applyManifestPatches();
+			if (this.cancelled(token)) return;
+
 			const initialFile = this.projectFiles[0];
 			if (initialFile) await this.openFile(initialFile);
 			else this.loading = false;
@@ -328,6 +334,26 @@ export class IdeSession {
 			await writePodFile(pod, BP_RC_PATH, BP_RC);
 		} catch (error) {
 			console.warn('Could not write shell rc:', error);
+		}
+	}
+
+	private async applyManifestPatches(): Promise<void> {
+		if (!this.pod) return;
+		const manifestPath = `${this.workdir}/package.json`;
+		try {
+			const raw = await readPodFile(this.pod, manifestPath);
+			const result = patchClonedManifest(raw);
+			if (!result) {
+				this.termWrite(`\r\n${ANSI.dim}No dependency patches apply to this repo.${ANSI.reset}\r\n`);
+				return;
+			}
+			await writePodFile(this.pod, manifestPath, result.patched);
+			for (const note of result.notes) this.termWrite(`\r\n${ANSI.dim}${note}${ANSI.reset}\r\n`);
+		} catch (error) {
+			this.termWrite(
+				`\r\n${ANSI.coral}Could not patch package.json; installing the repo as cloned.${ANSI.reset}\r\n`
+			);
+			console.warn('Could not patch the cloned manifest:', error);
 		}
 	}
 
