@@ -63,6 +63,9 @@ export class IdeSession {
 	/** Directory the project lives in inside the pod; pod file paths resolve against it. */
 	workdir = POD_HOME;
 	private githubSlug = $state('');
+	/** Repo URL this session clones from: `git clone` appends `.git`, bug reports link it as-is. */
+	private githubUrl = $state('');
+	private githubRef = $state('');
 
 	pod: BrowserPod | null = null;
 	outputTerminal: Terminal | null = null;
@@ -86,6 +89,12 @@ export class IdeSession {
 	/** Label shown in the IDE shell; framework label, or owner/repo[/dir] in GitHub mode. */
 	get displayLabel(): string {
 		return this.mode === 'github' ? this.githubSlug : this.config.label;
+	}
+
+	/** What this session cloned; null in framework mode. Carried into bug reports. */
+	get repo(): { url: string; ref: string } | null {
+		if (this.mode !== 'github' || !this.githubUrl) return null;
+		return { url: this.githubUrl, ref: this.githubRef };
 	}
 
 	/** Preview is pinned to this port when set. Unknown for arbitrary GitHub repos. */
@@ -176,6 +185,8 @@ export class IdeSession {
 		this.booting = true;
 		this.mode = 'github';
 		this.githubSlug = dir ? `${owner}/${repo}/${dir}` : `${owner}/${repo}`;
+		this.githubUrl = `https://github.com/${owner}/${repo}`;
+		this.githubRef = ref;
 		const token = ++this.bootToken;
 		try {
 			this.bootStage = 'booting';
@@ -202,7 +213,7 @@ export class IdeSession {
 			// git manages its own colors (no TTY here, so none) — forcing COLOR_ENV would change nothing.
 			await this.runInOutput(
 				'git',
-				['clone', '--depth', '1', '--branch', ref, `https://github.com/${owner}/${repo}.git`],
+				['clone', '--depth', '1', '--branch', ref, `${this.githubUrl}.git`],
 				{ cwd: POD_HOME, color: false }
 			);
 			if (this.cancelled(token)) return;

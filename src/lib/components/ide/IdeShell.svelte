@@ -14,6 +14,8 @@
 	import type { PortalUpdate } from '$lib/pod/portals';
 	import { installLeaveGuard } from '$lib/stores/leaveWarning.svelte';
 	import { watchIsMobile } from '$lib/utils/viewport';
+	import { bugReportUrl } from '$lib/utils/bug-report';
+	import { trackEvent } from '$lib/utils/useLazyTracking';
 	import ZenToggle from '$lib/components/ZenToggle.svelte';
 	import { zenState } from '$lib/stores/zen.svelte';
 
@@ -77,6 +79,9 @@
 	// Frameworks with a declared app port keep the preview pinned to it; other
 	// ports stay reachable through the port selector.
 	const portal = new PortalState({ preferredPort: () => session.appPort });
+
+	// Recomputed as the preview moves ports, so a report always carries the live portal URL.
+	let bugReportHref = $derived(bugReportUrl({ repo: session.repo, previewUrl: portal.url }));
 
 	// Live once the framed document loaded, so the loader covers the server's start and first paint.
 	let previewLive = $derived(portal.frameStatus === 'ready');
@@ -250,6 +255,20 @@
 				</button>
 			</div>
 			<div class="mt-auto flex flex-col gap-0.5 p-1 pb-2">
+				<!-- The tracker is an external URL, so resolve() does not apply here. -->
+				<!-- eslint-disable svelte/no-navigation-without-resolve -->
+				<a
+					href={bugReportHref}
+					target="_blank"
+					rel="noopener noreferrer"
+					title="Report a bug"
+					aria-label="Report a bug"
+					onclick={() => trackEvent('Clicked Report Bug', { mode: session.mode })}
+					class="flex items-center justify-center rounded p-1.5 text-zinc-600 transition hover:bg-bc-coral/10 hover:text-bc-coral"
+				>
+					<Icon icon="mingcute:bug-line" width="18" height="18" />
+				</a>
+				<!-- eslint-enable svelte/no-navigation-without-resolve -->
 				<ZenToggle
 					baseClass="flex items-center justify-center rounded p-1.5 transition"
 					activeClass="bg-bc-azure/15 text-bc-azure"
