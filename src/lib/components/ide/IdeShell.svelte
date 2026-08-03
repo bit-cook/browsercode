@@ -60,7 +60,7 @@
 	let downloading = $state(false);
 
 	async function handleDownload() {
-		if (downloading || !session.hasPortal) return;
+		if (downloading || !session.podReady) return;
 		downloading = true;
 		try {
 			await downloadProject(session);
@@ -219,21 +219,6 @@
 				<span class="ml-1 shrink-0 text-bc-mist/70">saving…</span>
 			{/if}
 		</div>
-		<button
-			type="button"
-			title="Download this project"
-			disabled={!session.hasPortal || downloading}
-			onclick={handleDownload}
-			class="flex shrink-0 items-center gap-1.5 rounded px-2 py-1 text-[11px] text-zinc-400 transition hover:bg-white/5 hover:text-zinc-200 disabled:pointer-events-none disabled:opacity-40"
-		>
-			<Icon
-				icon={downloading ? 'mingcute:loading-line' : 'mingcute:download-line'}
-				class={downloading ? 'animate-spin' : ''}
-				width="15"
-				height="15"
-			/>
-			<span>{downloading ? 'Zipping…' : 'Download'}</span>
-		</button>
 	</header>
 
 	<!-- ── Body ────────────────────────────────────────────────────────────── -->
@@ -292,7 +277,7 @@
 				{#if activePanel === 'files'}
 					<div class="flex items-center justify-between border-b border-bc-mist/10 px-3 py-1.5">
 						<span class="text-[10px] font-medium tracking-widest text-zinc-600 uppercase">
-							Files
+							Project files
 						</span>
 						<div class="flex items-center gap-0.5">
 							<button
@@ -312,6 +297,20 @@
 								class="rounded p-1 text-zinc-600 transition hover:bg-white/5 hover:text-zinc-300 disabled:pointer-events-none disabled:opacity-40"
 							>
 								<Icon icon="mingcute:new-folder-line" width="13" height="13" />
+							</button>
+							<button
+								type="button"
+								title={downloading ? 'Zipping project…' : 'Download this project as a zip'}
+								disabled={!session.podReady || downloading}
+								onclick={handleDownload}
+								class="rounded p-1 text-zinc-600 transition hover:bg-white/5 hover:text-zinc-300 disabled:pointer-events-none disabled:opacity-40"
+							>
+								<Icon
+									icon={downloading ? 'mingcute:loading-line' : 'mingcute:download-line'}
+									class={downloading ? 'animate-spin' : ''}
+									width="13"
+									height="13"
+								/>
 							</button>
 						</div>
 					</div>
