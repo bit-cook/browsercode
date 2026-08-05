@@ -1,43 +1,65 @@
 /**
- * Per-framework npm `overrides` injected into a cloned GitHub repo's package.json before
- * install.
+ * Per-framework patches applied to a cloned GitHub repo's package.json before install.
  */
 
 type Manifest = {
 	dependencies?: Record<string, string>;
 	devDependencies?: Record<string, string>;
-	overrides?: Record<string, unknown>;
 	[key: string]: unknown;
 };
 
 /** What the repo declares, package name to version spec, dependencies and devDependencies. */
 type DeclaredDeps = Map<string, string>;
 
-type OverrideRule = {
-	framework: string;
-	applies: (deps: DeclaredDeps) => boolean;
-	overrides: Record<string, string>;
-	/** Echoed to Output after the packages pinned; a lowercase clause saying why they are. */
-	reason: string;
+type SectionPatch = {
+	/** Top-level manifest key holding a name to value map. */
+	section: string;
+	/** `force` wins over the repo's value; `fill` only writes where the repo has none. */
+	mode: 'force' | 'fill';
+	entries: Record<string, string>;
 };
 
-const OVERRIDE_RULES: OverrideRule[] = [
+type FrameworkRule = {
+	applies: (deps: DeclaredDeps) => boolean;
+	patches: SectionPatch[];
+};
+
+/** Ours wins: for where the repo's own value is the thing that breaks the pod. */
+function force(section: string, entries: Record<string, string>): SectionPatch {
+	return { section, mode: 'force', entries };
+}
+
+/** Theirs wins: for where we only supply something the repo left out. */
+function fill(section: string, entries: Record<string, string>): SectionPatch {
+	return { section, mode: 'fill', entries };
+}
+
+/** Dependency sections share one namespace, so a `fill` into one checks the others too. */
+const DEP_SECTIONS = new Set([
+	'dependencies',
+	'devDependencies',
+	'optionalDependencies',
+	'peerDependencies'
+]);
+
+const FRAMEWORK_RULES: FrameworkRule[] = [
+	// Vite 8+
 	{
-		framework: 'Vite 8+',
 		applies: (deps) => majorAtLeast(deps, 'vite', 8),
-		overrides: {
-			'@napi-rs/wasm-runtime': '1.1.6'
-		},
-		reason: 'the wasm runtime; it otherwise fails to instantiate in the pod'
+		patches: [
+			fill('devDependencies', { '@rolldown/binding-wasm32-wasi': '1.2.2' })
+		]
 	},
+	// Vite 7 and earlier
 	{
-		framework: 'Vite 7 and earlier',
 		applies: (deps) => majorBelow(deps, 'vite', 8),
-		overrides: {
-			esbuild: 'npm:esbuild-wasm@0.25.11',
-			rollup: 'npm:@rollup/wasm-node@4.52.4'
-		},
-		reason: 'the native esbuild and rollup binaries cannot run in the pod'
+		patches: [
+			// These bundle with esbuild and rollup, whose native binaries the pod cannot execute.
+			force('overrides', {
+				esbuild: 'npm:esbuild-wasm@0.25.11',
+				rollup: 'npm:@rollup/wasm-node@4.52.4'
+			})
+		]
 	}
 ];
 
@@ -65,10 +87,25 @@ function majorBelow(deps: DeclaredDeps, name: string, major: number): boolean {
 	return highest !== null && highest < major;
 }
 
+function isRecord(value: unknown): value is Record<string, string> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** Whether a `fill` should stand aside: the repo has this entry, or declares it as a sibling dep. */
+function alreadyPresent(
+	section: Record<string, string>,
+	sectionName: string,
+	name: string,
+	deps: DeclaredDeps
+): boolean {
+	return name in section || (DEP_SECTIONS.has(sectionName) && deps.has(name));
+}
+
 /**
- * Forces every matching rule's overrides into the manifest, winning over the repo's own entry
- * for the same package. Returns null when nothing changed: no rule matched, ours already match,
- * or the manifest would not parse.
+ * Applies every matching rule's patches to the manifest. Returns the rewritten manifest plus one
+ * note per entry changed, or null when nothing changed: no rule matched, every entry already held
+ * the value we wanted, or the manifest would not parse. Sections the rules never touch, and the
+ * file's indentation and trailing newline, are preserved.
  */
 export function patchClonedManifest(
 	manifestRaw: string
@@ -82,21 +119,37 @@ export function patchClonedManifest(
 	const deps: DeclaredDeps = new Map(
 		Object.entries({ ...manifest.dependencies, ...manifest.devDependencies })
 	);
-	const overrides = { ...manifest.overrides };
-	const notes: string[] = [];
-	for (const rule of OVERRIDE_RULES) {
-		if (!rule.applies(deps)) continue;
-		const applied: string[] = [];
-		for (const [name, spec] of Object.entries(rule.overrides)) {
-			if (overrides[name] === spec) continue;
-			overrides[name] = spec;
-			applied.push(`${name}@${spec}`);
+	// Working copies, seeded from the manifest the first time a rule touches the section. A section
+	// holding anything other than a map is treated as absent; npm would reject it anyway.
+	const sections = new Map<string, Record<string, string>>();
+	const workingCopy = (name: string): Record<string, string> => {
+		let section = sections.get(name);
+		if (!section) {
+			const current = manifest[name];
+			section = isRecord(current) ? { ...current } : {};
+			sections.set(name, section);
 		}
-		if (applied.length === 0) continue;
-		notes.push(`${rule.framework}: pinned ${applied.join(', ')} — ${rule.reason}`);
+		return section;
+	};
+
+	const notes: string[] = [];
+	for (const rule of FRAMEWORK_RULES) {
+		if (!rule.applies(deps)) continue;
+		for (const { section: sectionName, mode, entries } of rule.patches) {
+			const section = workingCopy(sectionName);
+			for (const [name, value] of Object.entries(entries)) {
+				if (mode === 'fill' && alreadyPresent(section, sectionName, name, deps)) continue;
+				if (section[name] === value) continue;
+				section[name] = value;
+				notes.push(`${mode === 'fill' ? 'added' : 'replaced'} ${sectionName}.${name}: ${value}`);
+			}
+		}
 	}
 	if (notes.length === 0) return null;
-	manifest.overrides = overrides;
+	// Written back only when non-empty, so a section nobody contributed to is never created.
+	for (const [name, section] of sections) {
+		if (Object.keys(section).length > 0) manifest[name] = section;
+	}
 	const indent = manifestRaw.match(/^([ \t]+)"/m)?.[1] ?? '  ';
 	const patched = JSON.stringify(manifest, null, indent) + (manifestRaw.endsWith('\n') ? '\n' : '');
 	return { patched, notes };

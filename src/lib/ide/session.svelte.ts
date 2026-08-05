@@ -348,7 +348,9 @@ export class IdeSession {
 				return;
 			}
 			await writePodFile(this.pod, manifestPath, result.patched);
-			for (const note of result.notes) this.termWrite(`\r\n${ANSI.dim}${note}${ANSI.reset}\r\n`);
+			// Header takes the leading blank line; the changes follow indented under it as one block.
+			this.termWrite(`\r\n${ANSI.dim}Modified package.json${ANSI.reset}\r\n`);
+			for (const note of result.notes) this.termWrite(`${ANSI.dim}  ${note}${ANSI.reset}\r\n`);
 		} catch (error) {
 			this.termWrite(
 				`\r\n${ANSI.coral}Could not patch package.json; installing the repo as cloned.${ANSI.reset}\r\n`
