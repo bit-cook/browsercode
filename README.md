@@ -42,7 +42,7 @@ BrowserCode is a browser-based coding sandbox. It's a working example of [Browse
 
 BrowserCode started out as a way to run AI coding CLIs entirely client-side. It's since grown into a full IDE: alongside the CLIs, it can boot and preview web frameworks directly in the browser, so you can prototype an agent's output without ever leaving the tab.
 
-BrowserCode 0.6.0 is our latest beta release. This preview launches with an unmodified version of Claude Code, running completely client-side. Gemini CLI is available as well.
+BrowserCode 1.0.0 is our latest beta release. This preview launches with an unmodified version of Claude Code, running completely client-side.
 
 <h2 id="quickstart">Quickstart</h2>
 
@@ -99,12 +99,12 @@ This is BrowserCode beta. Don't be kind to it. Stretch it, bend it, find out wha
 
 <h2 id="roadmap">Roadmap</h2>
 
-|                                                                                    | CLI             | Status           |
-| :--------------------------------------------------------------------------------: | --------------- | ---------------- |
-| <img src="./static/readme/gemini.webp" alt="Gemini CLI" width="32" height="32" />  | **Gemini CLI**  | ✅ Beta open now |
-| <img src="./static/readme/claude.webp" alt="Claude Code" width="32" height="32" /> | **Claude Code** | ✅ Beta open now |
-|    <img src="./static/readme/codex.webp" alt="Codex" width="32" height="32" />     | **Codex**       | 🚧 Coming soon   |
-| <img src="./static/readme/opencode.webp" alt="OpenCode" width="32" height="32" />  | **OpenCode**    | 🚧 Coming soon   |
+|                                                                                        | CLI             | Status           |
+| :------------------------------------------------------------------------------------: | --------------- | ---------------- |
+|   <img src="./static/readme/claude.webp" alt="Claude Code" width="32" height="32" />   | **Claude Code** | ✅ Beta open now |
+|      <img src="./static/readme/codex.webp" alt="Codex" width="32" height="32" />       | **Codex**       | 🚧 Coming soon   |
+| <img src="./static/readme/antigravity.svg" alt="Antigravity" width="32" height="32" /> | **Antigravity** | 🚧 Coming soon   |
+|   <img src="./static/readme/opencode.webp" alt="OpenCode" width="32" height="32" />    | **OpenCode**    | 🚧 Coming soon   |
 
 Also coming up: cloning GitHub repos directly into your BrowserCode workspace.
 

@@ -1,4 +1,4 @@
-export type ToolId = 'claude' | 'gemini' | 'codex' | 'opencode';
+export type ToolId = 'claude' | 'antigravity' | 'codex' | 'opencode';
 
 export type ToolItem = {
 	id: ToolId;
@@ -22,10 +22,10 @@ export const toolItems: ToolItem[] = [
 		dotClass: 'bg-orange-400'
 	},
 	{
-		id: 'gemini',
-		icon: 'simple-icons:googlegemini',
-		label: 'Gemini CLI',
-		disabled: false,
+		id: 'antigravity',
+		icon: 'bxl:google-antigravity',
+		label: 'Antigravity',
+		disabled: true,
 		accentClass: 'bg-blue-500/10 text-blue-400',
 		dotClass: 'bg-blue-400'
 	},
@@ -76,12 +76,5 @@ export const cliConfigs: Record<string, CLIConfig> = {
 				window.open(fixedUrl, '_blank');
 			}
 		}
-	},
-	gemini: {
-		userImage: 'wss://disks.browserpod.io/gemini_20260430_2.ext2',
-		storageKey: 'gemini_20260430_2',
-		command: 'node',
-		args: ['/home/user/node_modules/@google/gemini-cli/bundle/gemini.js'],
-		projectFile: '/project/gemini/GEMINI.md'
 	}
 };

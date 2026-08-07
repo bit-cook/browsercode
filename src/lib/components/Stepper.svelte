@@ -141,8 +141,8 @@
 						Welcome to BrowserCode
 					</h1>
 					<p class="text-sm leading-relaxed text-zinc-400">
-						Run AI coding agents like Claude Code and Gemini CLI, or spin up a full IDE playground
-						for popular frameworks, with everything sandboxed right in this browser tab.
+						Run AI coding agents like Claude Code, or spin up a full IDE playground for popular
+						frameworks, with everything sandboxed right in this browser tab.
 					</p>
 				{:else if stepperState.step === 2}
 					<h1 id="stepper-title" class="mb-3 font-display text-3xl font-bold text-zinc-100">
@@ -201,7 +201,7 @@
 						Or run AI agents from the sidebar
 					</h1>
 					<p class="text-sm leading-relaxed text-zinc-400">
-						Claude Code and Gemini CLI are available now. Codex CLI and OpenCode are coming soon.
+						Claude Code is available now. Antigravity, Codex CLI and OpenCode are coming soon.
 					</p>
 
 					<div class="mt-6 grid grid-cols-2 gap-2">

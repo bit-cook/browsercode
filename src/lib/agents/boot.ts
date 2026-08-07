@@ -17,7 +17,7 @@ export async function bootCLI(
 ) {
 	const { BrowserPod } = await import('@leaningtech/browserpod');
 
-	const config = cliConfigs[tool] ?? cliConfigs.gemini;
+	const config = cliConfigs[tool] ?? cliConfigs.claude;
 	const toolLabel = toolItems.find((item) => item.id === tool)?.label ?? tool;
 
 	if (isIos()) {
