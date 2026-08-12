@@ -42,8 +42,15 @@ export async function prepareCodexPod(pod: BrowserPod): Promise<void> {
 }
 
 /**
+ * Streaming the image's blocks over a cold cache is the slow part; well past that, the probe is
+ * never going to answer and waiting forever would just spin the loading card silently.
+ */
+const WARMUP_TIMEOUT_MS = 120_000;
+
+/**
  * Pulls the image's blocks in behind the loading card, since they stream lazily on first exec.
- * Output is the only completion signal: `pod.run` resolves on spawn, not exit.
+ * Output is the only completion signal: `pod.run` resolves on spawn, not exit — so a missing or
+ * broken binary shows up as silence, not as a rejection. Time it out rather than hang.
  */
 async function warmCodexBinary(pod: BrowserPod): Promise<void> {
 	let onFirstOutput!: () => void;
@@ -55,7 +62,26 @@ async function warmCodexBinary(pod: BrowserPod): Promise<void> {
 	});
 
 	await pod.run(CODEX_BIN_PATH, ['--version'], { terminal });
-	await ran;
+
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const timedOut = new Promise<never>((_, reject) => {
+		timer = setTimeout(
+			() =>
+				reject(
+					new Error(
+						`Codex did not respond within ${WARMUP_TIMEOUT_MS / 1000}s. The disk image may still ` +
+							`be streaming on a slow connection, or ${CODEX_BIN_PATH} is missing from it.`
+					)
+				),
+			WARMUP_TIMEOUT_MS
+		);
+	});
+
+	try {
+		await Promise.race([ran, timedOut]);
+	} finally {
+		clearTimeout(timer);
+	}
 }
 
 async function hasCodexConfig(pod: BrowserPod): Promise<boolean> {

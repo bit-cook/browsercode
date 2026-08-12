@@ -6,8 +6,9 @@
 
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
-	import { bootCLI, type CLIBootHooks } from '$lib/agents/boot';
+	import { bootCLI, describeError, type CLIBootHooks } from '$lib/agents/boot';
 	import { getCodexApiKey, setCodexApiKey } from '$lib/agents/codex';
+	import CodexErrorCard from '$lib/components/agents/CodexErrorCard.svelte';
 	import CodexLoadingCard from '$lib/components/agents/CodexLoadingCard.svelte';
 	import CodexSignInCard from '$lib/components/agents/CodexSignInCard.svelte';
 	import { openTour } from '$lib/stores/stepper.svelte';
@@ -112,10 +113,23 @@
 	// Tool switching is a full page load, so the active tool is fixed for this page's lifetime
 	const activeTool = getActiveTool();
 
-	let codexStage = $state<'idle' | 'loading' | 'signin'>('idle');
+	let codexStage = $state<'idle' | 'loading' | 'signin' | 'error'>('idle');
+	let codexError = $state('');
 	let codexHasKey = $state(true);
 	let codexChangeKeyOpen = $state(false);
 	let resolveSignIn: ((key: string) => void) | null = null;
+
+	// The loading card covers the terminal, so a boot that dies behind it would otherwise just
+	// spin forever. Swap it for the failure instead.
+	function reportCodexBootFailure(error: unknown) {
+		codexError = describeError(error);
+		codexStage = 'error';
+	}
+
+	function retryBoot() {
+		markIntentionalNavigation();
+		window.location.reload();
+	}
 
 	// OPENAI_API_KEY is fixed at process launch, so boot blocks here rather than overlaying a CLI
 	// already running without a key.
@@ -133,8 +147,7 @@
 	// A changed key only applies to a fresh launch, so saving restarts the whole session.
 	function saveKeyAndRestart(key: string) {
 		setCodexApiKey(key);
-		markIntentionalNavigation();
-		window.location.reload();
+		retryBoot();
 	}
 
 	function toggleToolMenu() {
@@ -185,7 +198,13 @@
 				codexStage = 'loading';
 			}
 
-			bootCLI(tool, consoleEl, portal.apply, tool === 'codex' ? codexBootHooks : undefined);
+			// bootCLI already logs and writes the failure into the terminal; Codex additionally needs
+			// its overlay taken down, since it hides that terminal.
+			bootCLI(tool, consoleEl, portal.apply, tool === 'codex' ? codexBootHooks : undefined).catch(
+				(error) => {
+					if (tool === 'codex') reportCodexBootFailure(error);
+				}
+			);
 		});
 
 		return () => {
@@ -279,6 +298,12 @@
 					{#if codexStage === 'loading'}
 						<CodexLoadingCard
 							willAskForKey={!codexHasKey}
+							onCancel={() => navigateWithLeaveGuard('/agents', false)}
+						/>
+					{:else if codexStage === 'error'}
+						<CodexErrorCard
+							message={codexError}
+							onRetry={retryBoot}
 							onCancel={() => navigateWithLeaveGuard('/agents', false)}
 						/>
 					{:else if codexStage === 'signin'}
