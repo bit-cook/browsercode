@@ -128,15 +128,15 @@
 					<div>
 						<div class="text-[14px] font-medium text-zinc-100">Run coding agents</div>
 						<div class="mt-0.5 text-[12.5px] leading-relaxed text-white/45">
-							Claude Code, sandboxed in your browser
+							Claude Code and Codex CLI, sandboxed in your browser
 						</div>
 					</div>
 				</button>
 			</div>
 
 			<p class="mt-6 max-w-md text-[12px] leading-relaxed text-white/35">
-				A multi-language WebAssembly sandbox (Node.js, Python, and more) with no installs, no servers,
-				no cloud compute.
+				A multi-language WebAssembly sandbox (Node.js, Rust, and Python in preview) with no
+				installs, no servers, no cloud compute.
 			</p>
 		</div>
 
@@ -196,7 +196,7 @@
 					editor, file tree, terminals, and live preview for popular frameworks, and a set of
 					<span class="text-zinc-200">AI coding CLIs</span>
 					that you can run unmodified, with real file access and networking, without touching your local
-					machine, including Claude Code today, with more on the way.
+					machine, including Claude Code and Codex CLI today, with more on the way.
 				</p>
 
 				<p class="mb-10 text-[14.5px] leading-relaxed text-white/60">
@@ -208,8 +208,9 @@
 						class="font-medium text-zinc-100 underline decoration-white/20 underline-offset-2 hover:decoration-white/50"
 					>
 						BrowserPod
-					</a>, a sandboxed Node.js runtime compiled to WebAssembly with a persistent filesystem,
-					POSIX CLI tools (bash, git, npm), and instant app previews through portal URLs.
+					</a>, a sandboxed multi-language runtime compiled to WebAssembly with a persistent
+					filesystem, POSIX CLI tools (bash, git, npm), and instant app previews through portal
+					URLs.
 				</p>
 
 				<div class="mb-2 text-[11px] font-medium tracking-widest text-bc-mist/40 uppercase">
