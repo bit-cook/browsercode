@@ -93,6 +93,7 @@ export const cliConfigs: Record<string, CLIConfig> = {
 		storageKey: 'rust-post-demos-2',
 		command: CODEX_BIN_PATH,
 		args: [],
+		projectFile: '/project/codex/AGENTS.md',
 		prepare: prepareCodexPod,
 		env: codexEnv
 	}
