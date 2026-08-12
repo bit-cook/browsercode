@@ -5,6 +5,11 @@ import type { PortalUpdate } from '$lib/pod/portals';
 import { isIos } from '$lib/utils/platform';
 import { trackEvent } from '$lib/utils/useLazyTracking';
 
+export type CLIBootHooks = {
+	/** Awaited after the pod is prepared and before the CLI starts; used to gate on sign-in. */
+	beforeLaunch?: () => Promise<void> | void;
+};
+
 /**
  * Boots an agent tool's disk image into a pod and runs its CLI against `terminalEl`.
  * Portal events (and Claude's OAuth open events) stream through the callbacks
@@ -13,7 +18,8 @@ import { trackEvent } from '$lib/utils/useLazyTracking';
 export async function bootCLI(
 	tool: keyof typeof cliConfigs,
 	terminalEl: HTMLElement,
-	onPortalUpdate?: (update: PortalUpdate) => void
+	onPortalUpdate?: (update: PortalUpdate) => void,
+	hooks?: CLIBootHooks
 ) {
 	const { BrowserPod } = await import('@leaningtech/browserpod');
 
@@ -63,12 +69,15 @@ export async function bootCLI(
 		await copyStaticFile(pod, config.projectFile, `${homePath}/${filename}`);
 	}
 
+	await config.prepare?.(pod);
+	await hooks?.beforeLaunch?.();
+
 	writeToTerminal(terminal, `Starting ${toolLabel}...\n`);
 
 	trackEvent('Booted', { tool: toolLabel });
 
 	await pod.run(config.command, config.args, {
-		env: ['COLORTERM=truecolor'],
+		env: ['COLORTERM=truecolor', ...(config.env?.() ?? [])],
 		terminal,
 		cwd: homePath
 	});

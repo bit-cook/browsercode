@@ -6,12 +6,19 @@
 
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
-	import { bootCLI } from '$lib/agents/boot';
+	import { bootCLI, type CLIBootHooks } from '$lib/agents/boot';
+	import { getCodexApiKey, setCodexApiKey } from '$lib/agents/codex';
+	import CodexLoadingCard from '$lib/components/agents/CodexLoadingCard.svelte';
+	import CodexSignInCard from '$lib/components/agents/CodexSignInCard.svelte';
 	import { openTour } from '$lib/stores/stepper.svelte';
 	import { toolItems } from '$lib/config/tools';
 	import { requestSingleTabLock } from '$lib/utils/tabLock';
 	import { watchIsMobile } from '$lib/utils/viewport';
-	import { navigateWithLeaveGuard, installLeaveGuard } from '$lib/stores/leaveWarning.svelte';
+	import {
+		navigateWithLeaveGuard,
+		installLeaveGuard,
+		markIntentionalNavigation
+	} from '$lib/stores/leaveWarning.svelte';
 	import { PortalState } from '$lib/stores/portals.svelte';
 	import ZenToggle from '$lib/components/ZenToggle.svelte';
 	import { zenState } from '$lib/stores/zen.svelte';
@@ -105,6 +112,31 @@
 	// Tool switching is a full page load, so the active tool is fixed for this page's lifetime
 	const activeTool = getActiveTool();
 
+	let codexStage = $state<'idle' | 'loading' | 'signin'>('idle');
+	let codexHasKey = $state(true);
+	let codexChangeKeyOpen = $state(false);
+	let resolveSignIn: ((key: string) => void) | null = null;
+
+	// OPENAI_API_KEY is fixed at process launch, so boot blocks here rather than overlaying a CLI
+	// already running without a key.
+	const codexBootHooks: CLIBootHooks = {
+		beforeLaunch: async () => {
+			if (!getCodexApiKey()) {
+				codexStage = 'signin';
+				setCodexApiKey(await new Promise<string>((resolve) => (resolveSignIn = resolve)));
+				codexHasKey = true;
+			}
+			codexStage = 'idle';
+		}
+	};
+
+	// A changed key only applies to a fresh launch, so saving restarts the whole session.
+	function saveKeyAndRestart(key: string) {
+		setCodexApiKey(key);
+		markIntentionalNavigation();
+		window.location.reload();
+	}
+
 	function toggleToolMenu() {
 		showToolMenu = !showToolMenu;
 	}
@@ -147,7 +179,13 @@
 				return;
 			}
 
-			bootCLI(tool, consoleEl, portal.apply);
+			// Covers pod boot, the image streaming in, and the warm-up probe.
+			if (tool === 'codex') {
+				codexHasKey = getCodexApiKey() !== null;
+				codexStage = 'loading';
+			}
+
+			bootCLI(tool, consoleEl, portal.apply, tool === 'codex' ? codexBootHooks : undefined);
 		});
 
 		return () => {
@@ -218,6 +256,45 @@
 					activeClass="border-bc-azure/40 bg-bc-azure/20 text-bc-azure"
 					idleClass="border-white/10 bg-black/40 text-white/40 hover:bg-black/60 hover:text-white/70"
 				/>
+			{/if}
+
+			<!-- The env-bound API key can only change via a relaunch, so the way in is always here. -->
+			{#if activeTool === 'codex'}
+				<button
+					onclick={() => (codexChangeKeyOpen = true)}
+					aria-label="OpenAI API key"
+					title="OpenAI API key"
+					class="absolute bottom-4 z-30 flex items-center justify-center rounded-lg border border-white/10 bg-black/40 p-2 text-white/40 backdrop-blur-sm transition hover:bg-black/60 hover:text-white/70 {isMobile
+						? 'left-4'
+						: 'left-16'}"
+				>
+					<Icon icon="mingcute:key-2-line" width="18" height="18" />
+				</button>
+			{/if}
+
+			{#if codexStage !== 'idle' || codexChangeKeyOpen}
+				<div
+					class="absolute inset-0 z-40 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+				>
+					{#if codexStage === 'loading'}
+						<CodexLoadingCard
+							willAskForKey={!codexHasKey}
+							onCancel={() => navigateWithLeaveGuard('/agents', false)}
+						/>
+					{:else if codexStage === 'signin'}
+						<CodexSignInCard
+							mode="boot"
+							onSubmit={(key) => resolveSignIn?.(key)}
+							onCancel={() => navigateWithLeaveGuard('/agents', false)}
+						/>
+					{:else}
+						<CodexSignInCard
+							mode="change"
+							onSubmit={saveKeyAndRestart}
+							onCancel={() => (codexChangeKeyOpen = false)}
+						/>
+					{/if}
+				</div>
 			{/if}
 
 			<!-- Non-blocking tip: this is a real terminal, not a GUI — clicks alone won't do much. -->

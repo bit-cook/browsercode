@@ -68,14 +68,20 @@
 									/>
 								{/if}
 							</span>
-							<span class="flex items-center gap-1.5 text-[13px] font-medium">
-								<span class={item.disabled ? 'text-white/30' : 'text-zinc-200'}>{item.label}</span>
-								{#if item.disabled}
-									<span
-										class="rounded bg-bc-gold/10 px-1.5 py-0.5 text-[10px] font-medium text-bc-gold/80"
+							<span class="flex flex-col items-center gap-1">
+								<span class="flex items-center gap-1.5 text-[13px] font-medium">
+									<span class={item.disabled ? 'text-white/30' : 'text-zinc-200'}>{item.label}</span
 									>
-										Soon
-									</span>
+									{#if item.disabled}
+										<span
+											class="rounded bg-bc-gold/10 px-1.5 py-0.5 text-[10px] font-medium text-bc-gold/80"
+										>
+											Soon
+										</span>
+									{/if}
+								</span>
+								{#if item.requirement && !item.disabled}
+									<span class="text-[10.5px] text-white/30">Needs an {item.requirement}</span>
 								{/if}
 							</span>
 						</button>

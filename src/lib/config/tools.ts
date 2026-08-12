@@ -1,3 +1,6 @@
+import type { BrowserPod } from '@leaningtech/browserpod';
+import { codexEnv, prepareCodexPod, CODEX_BIN_PATH } from '$lib/agents/codex';
+
 export type ToolId = 'claude' | 'antigravity' | 'codex' | 'opencode';
 
 export type ToolItem = {
@@ -5,6 +8,8 @@ export type ToolItem = {
 	icon: string | null;
 	label: string;
 	disabled: boolean;
+	/** Set what the tool needs before booting, shown under its label on the agents landing. */
+	requirement?: string;
 	/** Tailwind classes for the icon badge when the tool is available (ignored while disabled). */
 	accentClass: string;
 	/** Solid Tailwind background class for the small "this one is running" status dot. */
@@ -22,20 +27,21 @@ export const toolItems: ToolItem[] = [
 		dotClass: 'bg-orange-400'
 	},
 	{
+		id: 'codex',
+		icon: 'hugeicons:chat-gpt',
+		label: 'Codex CLI',
+		disabled: false,
+		requirement: 'OpenAI API key',
+		accentClass: 'bg-bc-orchid/10 text-bc-orchid',
+		dotClass: 'bg-bc-orchid'
+	},
+	{
 		id: 'antigravity',
 		icon: 'bxl:google-antigravity',
 		label: 'Antigravity',
 		disabled: true,
 		accentClass: 'bg-blue-500/10 text-blue-400',
 		dotClass: 'bg-blue-400'
-	},
-	{
-		id: 'codex',
-		icon: 'hugeicons:chat-gpt',
-		label: 'Codex CLI',
-		disabled: true,
-		accentClass: 'bg-bc-orchid/10 text-bc-orchid',
-		dotClass: 'bg-bc-orchid'
 	},
 	{
 		id: 'opencode',
@@ -48,12 +54,17 @@ export const toolItems: ToolItem[] = [
 ];
 
 export type CLIConfig = {
-	userImage: string;
+	/** Prebuilt disk image, mounted at /home. */
+	userImage?: string;
 	storageKey: string;
 	command: string;
 	args: string[];
 	projectFile?: string;
 	openCallback?: (urlOrPath: string) => void;
+	/** Runs after the pod boots, before the CLI launches. */
+	prepare?: (pod: BrowserPod) => Promise<void>;
+	/** Extra env for the CLI process, resolved at launch. */
+	env?: () => string[];
 };
 
 export const cliConfigs: Record<string, CLIConfig> = {
@@ -76,5 +87,13 @@ export const cliConfigs: Record<string, CLIConfig> = {
 				window.open(fixedUrl, '_blank');
 			}
 		}
+	},
+	codex: {
+		userImage: 'wss://disks.browserpod.io/rust-post-demos-2.ext2',
+		storageKey: 'rust-post-demos-2',
+		command: CODEX_BIN_PATH,
+		args: [],
+		prepare: prepareCodexPod,
+		env: codexEnv
 	}
 };
