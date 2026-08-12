@@ -72,12 +72,6 @@
 		<div class="relative z-[2] flex flex-col items-center">
 			<img src={favicon} alt="BrowserCode" class="mb-6 h-14 w-14" />
 
-			<span
-				class="mb-4 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-medium tracking-wide text-white/50 uppercase"
-			>
-				Runs entirely client-side
-			</span>
-
 			<h1
 				class="mb-4 max-w-2xl font-display text-4xl font-bold tracking-tight text-zinc-50 sm:text-5xl"
 			>
