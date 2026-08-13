@@ -11,6 +11,13 @@
 
 	const totalSteps = 7;
 
+	// Derived from the registry rather than spelled out, so shipping a CLI can't leave the tour
+	// still announcing it as "coming soon".
+	const listSentence = (labels: string[]) =>
+		new Intl.ListFormat('en', { style: 'long', type: 'conjunction' }).format(labels);
+	const liveToolNames = listSentence(toolItems.filter((t) => !t.disabled).map((t) => t.label));
+	const soonToolNames = listSentence(toolItems.filter((t) => t.disabled).map((t) => t.label));
+
 	// The step lives in the shared store (not a local `let`) so +layout.svelte can read it for the
 	// GitHub ribbon z-index, and — more importantly — so opening the tour from anywhere (see
 	// openTour() in the store) can reliably reset it. A local reactive statement watching
@@ -141,8 +148,8 @@
 						Welcome to BrowserCode
 					</h1>
 					<p class="text-sm leading-relaxed text-zinc-400">
-						Run AI coding agents like Claude Code and Gemini CLI, or spin up a full IDE playground
-						for popular frameworks, with everything sandboxed right in this browser tab.
+						Run AI coding agents like Claude Code, or spin up a full IDE playground for popular
+						frameworks, with everything sandboxed right in this browser tab.
 					</p>
 				{:else if stepperState.step === 2}
 					<h1 id="stepper-title" class="mb-3 font-display text-3xl font-bold text-zinc-100">
@@ -183,7 +190,8 @@
 						Build in the IDE playground
 					</h1>
 					<p class="text-sm leading-relaxed text-zinc-400">
-						Boot a curated framework template straight into a full editor with terminal and live previews. You can find them in the sidebar.
+						Boot a curated framework template straight into a full editor with terminal and live
+						previews. You can find them in the sidebar.
 					</p>
 
 					<div class="mt-6 flex flex-wrap gap-2">
@@ -201,7 +209,7 @@
 						Or run AI agents from the sidebar
 					</h1>
 					<p class="text-sm leading-relaxed text-zinc-400">
-						Claude Code and Gemini CLI are available now. Codex CLI and OpenCode are coming soon.
+						{liveToolNames} are available now. {soonToolNames} are coming soon.
 					</p>
 
 					<div class="mt-6 grid grid-cols-2 gap-2">
@@ -242,7 +250,8 @@
 						This is our first beta
 					</h1>
 					<p class="text-sm leading-relaxed text-zinc-400">
-						Please bend, stretch, and break it. If something's off, let us know from Help in the sidebar, also where the getting-started basics and this tour live.
+						Please bend, stretch, and break it. If something's off, let us know from Help in the
+						sidebar, also where the getting-started basics and this tour live.
 					</p>
 				{:else if stepperState.step === 6}
 					<h1 id="stepper-title" class="mb-3 font-display text-3xl font-bold text-zinc-100">

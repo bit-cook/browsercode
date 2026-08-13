@@ -11,12 +11,12 @@
 
 [![Discord server](https://img.shields.io/discord/988743885121548329?color=%235865F2&logo=discord&logoColor=%23fff)](https://discord.gg/8ySMrQv6X)
 [![Issues](https://img.shields.io/github/issues/leaningtech/browsercode)](https://github.com/leaningtech/browsercode/issues)
-![Version](https://img.shields.io/badge/version-0.6.0-blue)
+![Version](https://img.shields.io/badge/version-1.1.0-blue)
 
   <h1>Run AI coding CLIs and frameworks in the browser</h1>
 
   <p>
- BrowserCode is a browser-based playground for fast-prototyping full-stack apps and sharing them instantly. It runs on BrowserPod, a multi-language WebAssembly sandbox (Node.js, Python, and more), with no installs, no servers, and no cloud compute.
+ BrowserCode is a browser-based playground for fast-prototyping full-stack apps and sharing them instantly. It runs on BrowserPod, a multi-language WebAssembly sandbox (Node.js, Rust, and Python in preview), with no installs, no servers, and no cloud compute.
   </p>
 </div>
 
@@ -32,17 +32,17 @@
 
 BrowserCode is a browser-based coding sandbox. It's a working example of [BrowserPod](https://browserpod.io/), and includes:
 
-- Node.js v22 running in the browser via WebAssembly
+- Node.js v22, Rust and Python (preview) running in the browser via WebAssembly (more runtimes coming)
 - A browser-contained, POSIX-like filesystem
 - Command line tools: bash, git, npm
 - Browser sandbox isolation from the user's operating system
-- Restricted outbound networking
+- Restricted outbound networking: the npm and yarn registries, GitHub, and the major AI provider APIs are reachable by default
 - Instant previews over URL via BrowserPod's portal function
 - Support for Express.js, Svelte, Next, Nuxt and React (with Wasm overrides)
 
 BrowserCode started out as a way to run AI coding CLIs entirely client-side. It's since grown into a full IDE: alongside the CLIs, it can boot and preview web frameworks directly in the browser, so you can prototype an agent's output without ever leaving the tab.
 
-BrowserCode 0.6.0 is our latest beta release. This preview launches with an unmodified version of Claude Code, running completely client-side. Gemini CLI is available as well.
+BrowserCode 1.1.0 is our latest beta release. It runs a full code editor, development environment, and unmodified versions of Claude Code and Codex CLI, completely client-side.
 
 <h2 id="quickstart">Quickstart</h2>
 
@@ -50,8 +50,8 @@ Want to try BrowserCode without installing anything? Use the hosted app.
 
 1. Go to [browsercode.io](https://browsercode.io)
 2. BrowserCode will boot instantly, opening with a quick modal tutorial to guide you
-3. Claude Code will launch instantly
-4. Depending on your log-in option, you may be asked to authenticate your account by copying a code from a separate tab
+3. Pick an agent from the sidebar, or open the IDE playground to boot a framework template
+4. Claude Code signs in by copying a code from a separate tab; Codex CLI asks for an OpenAI API key, stored in your browser
 
 <h2 id="make-it-your-own">Make it your own</h2>
 
@@ -92,20 +92,20 @@ CLI availability and behavior are configured in [`src/lib/config/tools.ts`](src/
 
 This is BrowserCode beta. Don't be kind to it. Stretch it, bend it, find out what breaks. Here are a few walls you might hit:
 
-- At launch, Claude is prompted using a custom skill to help it understand that it is running in a custom environment. However, it may first attempt its default behavior before referencing the file
+- At launch, each agent is given an instructions file (`CLAUDE.md` for Claude Code, `AGENTS.md` for Codex CLI) so it understands it is running in a custom environment. However, it may first attempt its default behavior before referencing the file
 - BrowserCode doesn't yet support native binaries. For more information, see the [BrowserPod documentation](https://browserpod.io/docs/guides/native-binaries)
 - Networking over TCP isn't available
 - For maximum compatibility, please use a Chromium browser. Safari currently isn't supported
 
 <h2 id="roadmap">Roadmap</h2>
 
-|                                                                                    | CLI             | Status           |
-| :--------------------------------------------------------------------------------: | --------------- | ---------------- |
-| <img src="./static/readme/gemini.webp" alt="Gemini CLI" width="32" height="32" />  | **Gemini CLI**  | ✅ Beta open now |
-| <img src="./static/readme/claude.webp" alt="Claude Code" width="32" height="32" /> | **Claude Code** | ✅ Beta open now |
-|    <img src="./static/readme/codex.webp" alt="Codex" width="32" height="32" />     | **Codex**       | 🚧 Coming soon   |
-| <img src="./static/readme/opencode.webp" alt="OpenCode" width="32" height="32" />  | **OpenCode**    | 🚧 Coming soon   |
+|                                                                                        | CLI             | Status           |
+| :------------------------------------------------------------------------------------: | --------------- | ---------------- |
+|   <img src="./static/readme/claude.webp" alt="Claude Code" width="32" height="32" />   | **Claude Code** | ✅ Beta open now |
+|    <img src="./static/readme/codex.webp" alt="Codex CLI" width="32" height="32" />     | **Codex CLI**   | ✅ Beta open now |
+| <img src="./static/readme/antigravity.svg" alt="Antigravity" width="32" height="32" /> | **Antigravity** | 🚧 Coming soon   |
+|   <img src="./static/readme/opencode.webp" alt="OpenCode" width="32" height="32" />    | **OpenCode**    | 🚧 Coming soon   |
 
-Also coming up: cloning GitHub repos directly into your BrowserCode workspace.
+Cloning GitHub repos directly into your BrowserCode workspace is available in beta from the IDE landing page.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>

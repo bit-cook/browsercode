@@ -72,12 +72,6 @@
 		<div class="relative z-[2] flex flex-col items-center">
 			<img src={favicon} alt="BrowserCode" class="mb-6 h-14 w-14" />
 
-			<span
-				class="mb-4 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-medium tracking-wide text-white/50 uppercase"
-			>
-				Runs entirely client-side
-			</span>
-
 			<h1
 				class="mb-4 max-w-2xl font-display text-4xl font-bold tracking-tight text-zinc-50 sm:text-5xl"
 			>
@@ -134,15 +128,15 @@
 					<div>
 						<div class="text-[14px] font-medium text-zinc-100">Run coding agents</div>
 						<div class="mt-0.5 text-[12.5px] leading-relaxed text-white/45">
-							Claude Code and Gemini CLI, sandboxed in your browser
+							Claude Code and Codex CLI, sandboxed in your browser
 						</div>
 					</div>
 				</button>
 			</div>
 
 			<p class="mt-6 max-w-md text-[12px] leading-relaxed text-white/35">
-				A multi-language WebAssembly sandbox (Node.js, Python, and more) with no installs, no servers,
-				no cloud compute.
+				A multi-language WebAssembly sandbox (Node.js, Rust, and Python in preview) with no
+				installs, no servers, no cloud compute.
 			</p>
 		</div>
 
@@ -202,7 +196,7 @@
 					editor, file tree, terminals, and live preview for popular frameworks, and a set of
 					<span class="text-zinc-200">AI coding CLIs</span>
 					that you can run unmodified, with real file access and networking, without touching your local
-					machine, including Claude Code and Gemini CLI today, with more on the way.
+					machine, including Claude Code and Codex CLI today, with more on the way.
 				</p>
 
 				<p class="mb-10 text-[14.5px] leading-relaxed text-white/60">
@@ -214,8 +208,9 @@
 						class="font-medium text-zinc-100 underline decoration-white/20 underline-offset-2 hover:decoration-white/50"
 					>
 						BrowserPod
-					</a>, a sandboxed Node.js runtime compiled to WebAssembly with a persistent filesystem,
-					POSIX CLI tools (bash, git, npm), and instant app previews through portal URLs.
+					</a>, a sandboxed multi-language runtime compiled to WebAssembly with a persistent
+					filesystem, POSIX CLI tools (bash, git, npm), and instant app previews through portal
+					URLs.
 				</p>
 
 				<div class="mb-2 text-[11px] font-medium tracking-widest text-bc-mist/40 uppercase">
