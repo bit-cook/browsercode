@@ -38,7 +38,7 @@
 	"dependencies": {
 		"@iconify-json/mingcute": "^1.2.7",
 		"@iconify/svelte": "^5.2.1",
-		"@leaningtech/browserpod": "3.0.0",
+		"@leaningtech/browserpod": "3.0.1",
 		"@sveltejs/adapter-static": "^3.0.10",
 		"fflate": "^0.8.3",
 		"monaco-editor": "^0.55.1",
