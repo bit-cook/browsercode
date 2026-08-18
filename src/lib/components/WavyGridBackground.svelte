@@ -270,7 +270,7 @@
 <canvas
 	bind:this={canvas}
 	aria-hidden="true"
-	class="pointer-events-none absolute inset-0 z-0 h-full w-full fade-edges"
+	class="fade-edges pointer-events-none absolute inset-0 z-0 h-full w-full"
 ></canvas>
 
 <style>
