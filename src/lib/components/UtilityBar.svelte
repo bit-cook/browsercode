@@ -37,7 +37,7 @@
 		rel="noopener noreferrer"
 		class="flex items-center gap-1 text-[11.5px] text-white/40 transition-colors duration-150 hover:text-bc-mist"
 	>
-		<span>Git, bash & BrowserPod 3.0</span>
+		<span>Rust & BrowserPod 3.0</span>
 		<Icon icon="mingcute:arrow-right-up-line" width="12" height="12" />
 	</a>
 </footer>
