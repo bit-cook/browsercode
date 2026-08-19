@@ -42,24 +42,21 @@ const DEP_SECTIONS = new Set([
 	'peerDependencies'
 ]);
 
+const WASM_BUNDLERS = {
+	esbuild: 'npm:esbuild-wasm@0.25.11',
+	rollup: 'npm:@rollup/wasm-node@4.52.4'
+};
+
 const FRAMEWORK_RULES: FrameworkRule[] = [
 	// Vite 8+
 	{
 		applies: (deps) => majorAtLeast(deps, 'vite', 8),
-		patches: [
-			fill('devDependencies', { '@rolldown/binding-wasm32-wasi': '1.2.2' })
-		]
+		patches: [fill('devDependencies', { '@rolldown/binding-wasm32-wasi': '1.2.2' })]
 	},
 	// Vite 7 and earlier
 	{
 		applies: (deps) => majorBelow(deps, 'vite', 8),
-		patches: [
-			// These bundle with esbuild and rollup, whose native binaries the pod cannot execute.
-			force('overrides', {
-				esbuild: 'npm:esbuild-wasm@0.25.11',
-				rollup: 'npm:@rollup/wasm-node@4.52.4'
-			})
-		]
+		patches: [force('overrides', WASM_BUNDLERS)]
 	}
 ];
 

@@ -44,7 +44,9 @@ async function githubFetch(path: string): Promise<unknown> {
 
 	if (response.status === 404) throw new Error('Repository, ref or path not found');
 	if (response.status === 403 && response.headers.get('x-ratelimit-remaining') === '0')
-		throw new Error('GitHub API rate limit exceeded (unauthenticated requests are limited to 60/hour)');
+		throw new Error(
+			'GitHub API rate limit exceeded (unauthenticated requests are limited to 60/hour)'
+		);
 	throw new Error(`GitHub API request failed (${response.status})`);
 }
 
