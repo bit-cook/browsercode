@@ -22,12 +22,22 @@ code_mode = false
 code_mode_only = false
 `;
 
+/** Embedded in a third-party frame the browser may partition storage away, or refuse it outright. */
 export function getCodexApiKey(): string | null {
-	return localStorage.getItem(API_KEY_STORAGE);
+	try {
+		return localStorage.getItem(API_KEY_STORAGE);
+	} catch (error) {
+		console.warn('Could not read the stored API key:', error);
+		return null;
+	}
 }
 
 export function setCodexApiKey(key: string): void {
-	localStorage.setItem(API_KEY_STORAGE, key);
+	try {
+		localStorage.setItem(API_KEY_STORAGE, key);
+	} catch (error) {
+		console.warn('Could not persist the API key:', error);
+	}
 }
 
 /** Codex reads the key from its environment, so it is only injectable at launch. */

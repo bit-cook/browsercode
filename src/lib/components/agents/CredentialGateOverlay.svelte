@@ -12,7 +12,7 @@
 		/** Relaunches the CLI, which is the only way a retry or a new secret takes effect. */
 		onRestart: () => void;
 		/** Abandons the boot; every stage here is reached before the CLI has started. */
-		onCancel: () => void;
+		onCancel?: () => void;
 	};
 
 	let { gate, tool, credential, onRestart, onCancel }: Props = $props();

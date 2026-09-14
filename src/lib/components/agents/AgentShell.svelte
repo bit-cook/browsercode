@@ -9,12 +9,15 @@
 	import { PortalState } from '$lib/stores/portals.svelte';
 	import { zenState } from '$lib/stores/zen.svelte';
 	import { startDrag } from '$lib/utils/drag';
+	import { FULL_SHELL, type ShellOptions } from '$lib/ide/shell-options';
 	import { watchIsMobile } from '$lib/utils/viewport';
 	import CredentialGateOverlay from './CredentialGateOverlay.svelte';
 	import TerminalTip from './TerminalTip.svelte';
 	import ToolMenuSheet from './ToolMenuSheet.svelte';
 
-	let { session }: { session: AgentSession } = $props();
+	// `shell` narrows what renders; the agents page omits it and gets the lot. Agents read the
+	// preview and tools fields only, the terminal being the session itself.
+	let { session, shell = FULL_SHELL }: { session: AgentSession; shell?: ShellOptions } = $props();
 
 	/** The div the pod's terminal attaches to, rendered by Terminal.svelte. */
 	let consoleEl = $state<HTMLElement | null>(null);
@@ -95,7 +98,7 @@
 
 	<!-- Zen toggle: the agents view has no icon rail, so this floating control is the
 	     always-visible way in and out. Desktop only. -->
-	{#if !isMobile}
+	{#if !isMobile && shell.tools}
 		<ZenToggle
 			baseClass="absolute bottom-4 left-4 z-30 flex items-center justify-center rounded-lg border p-2 backdrop-blur-sm transition"
 			activeClass="border-bc-azure/40 bg-bc-azure/20 text-bc-azure"
@@ -122,7 +125,7 @@
 				tool={session.tool}
 				credential={session.credential}
 				onRestart={session.restart}
-				onCancel={session.leave}
+				onCancel={shell.tools ? session.leave : undefined}
 			/>
 		{/if}
 	{/if}
@@ -132,7 +135,7 @@
 		<TerminalTip onDismiss={dismissTerminalTip} />
 	{/if}
 
-	{#if !isMobile && portal.portals.length > 0 && isPortalVisible}
+	{#if !isMobile && shell.preview && portal.portals.length > 0 && isPortalVisible}
 		<button
 			class="group absolute top-0 bottom-0 z-20 w-1.25 cursor-col-resize"
 			style="right: calc({portalFraction * 100}% - 0.625rem);"
@@ -154,7 +157,7 @@
 		>
 			<Portal {portal} />
 		</div>
-	{:else if isMobile && portal.portals.length > 0 && activeMobileView === 'preview'}
+	{:else if isMobile && shell.preview && portal.portals.length > 0 && activeMobileView === 'preview'}
 		<div class="absolute inset-0 overflow-hidden">
 			<Portal {portal} />
 		</div>
@@ -162,7 +165,7 @@
 </div>
 
 {#if isMobile}
-	{#if showToolMenu}
+	{#if showToolMenu && shell.tools}
 		<ToolMenuSheet
 			activeId={session.id}
 			onSelect={selectTool}
@@ -174,15 +177,17 @@
 		class="flex shrink-0 items-stretch border-t border-white/8 bg-[#0e0e0e]"
 		style="height: calc(52px + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom);"
 	>
-		<button
-			onclick={() => (showToolMenu = !showToolMenu)}
-			class="flex flex-1 cursor-pointer flex-col items-center justify-center gap-1 border-none transition-colors {showToolMenu
-				? 'text-white'
-				: 'text-white/35 hover:text-white/60'}"
-		>
-			<Icon icon="mingcute:menu-line" width="20" height="20" />
-			<span class="text-[10px] font-medium tracking-wide">Tools</span>
-		</button>
+		{#if shell.tools}
+			<button
+				onclick={() => (showToolMenu = !showToolMenu)}
+				class="flex flex-1 cursor-pointer flex-col items-center justify-center gap-1 border-none transition-colors {showToolMenu
+					? 'text-white'
+					: 'text-white/35 hover:text-white/60'}"
+			>
+				<Icon icon="mingcute:menu-line" width="20" height="20" />
+				<span class="text-[10px] font-medium tracking-wide">Tools</span>
+			</button>
+		{/if}
 		<button
 			onclick={() => (activeMobileView = 'terminal')}
 			class="flex flex-1 cursor-pointer flex-col items-center justify-center gap-1 border-none transition-colors {activeMobileView ===
@@ -193,7 +198,7 @@
 			<Icon icon="mingcute:terminal-line" width="20" height="20" />
 			<span class="text-[10px] font-medium tracking-wide">Terminal</span>
 		</button>
-		{#if portal.portals.length > 0}
+		{#if shell.preview && portal.portals.length > 0}
 			<button
 				onclick={() => (activeMobileView = 'preview')}
 				class="flex flex-1 cursor-pointer flex-col items-center justify-center gap-1 border-none transition-colors {activeMobileView ===
@@ -205,12 +210,14 @@
 				<span class="text-[10px] font-medium tracking-wide">Preview</span>
 			</button>
 		{/if}
-		<button
-			onclick={openTour}
-			class="flex flex-1 cursor-pointer flex-col items-center justify-center gap-1 border-none text-white/35 transition-colors hover:text-white/60"
-		>
-			<Icon icon="mingcute:question-line" width="20" height="20" />
-			<span class="text-[10px] font-medium tracking-wide">Help</span>
-		</button>
+		{#if shell.tools}
+			<button
+				onclick={openTour}
+				class="flex flex-1 cursor-pointer flex-col items-center justify-center gap-1 border-none text-white/35 transition-colors hover:text-white/60"
+			>
+				<Icon icon="mingcute:question-line" width="20" height="20" />
+				<span class="text-[10px] font-medium tracking-wide">Help</span>
+			</button>
+		{/if}
 	</nav>
 {/if}

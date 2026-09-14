@@ -12,7 +12,7 @@
 		/** The boot failure, verbatim — vague "something went wrong" copy helps nobody debug a pod. */
 		message: string;
 		onRetry: () => void;
-		onCancel: () => void;
+		onCancel?: () => void;
 	} = $props();
 </script>
 
@@ -45,12 +45,14 @@
 	</p>
 
 	<div class="mt-5.5 flex items-center justify-end gap-3">
-		<button
-			onclick={onCancel}
-			class="rounded-md bg-white/5 px-4.5 py-2 text-[13px] font-medium text-zinc-300 transition hover:bg-white/10"
-		>
-			Back to agents
-		</button>
+		{#if onCancel}
+			<button
+				onclick={onCancel}
+				class="rounded-md bg-white/5 px-4.5 py-2 text-[13px] font-medium text-zinc-300 transition hover:bg-white/10"
+			>
+				Back to agents
+			</button>
+		{/if}
 		<button
 			onclick={onRetry}
 			class="rounded-[7px] bg-bc-azure/90 px-5 py-2 text-[13px] font-medium text-white transition hover:bg-bc-azure"

@@ -1,6 +1,6 @@
 # Embedding BrowserCode
 
-BrowserCode runs entirely in the browser, so an embed is our page inside your iframe.
+BrowserCode runs entirely in the browser. An embed is our page inside your iframe.
 
 ```html
 <iframe
@@ -10,31 +10,44 @@ BrowserCode runs entirely in the browser, so an embed is our page inside your if
 ></iframe>
 ```
 
-## Your page must be cross-origin isolated
+## Required headers
 
-This is the one requirement we cannot satisfy for you. BrowserPod needs `SharedArrayBuffer`, which browsers only expose on cross-origin isolated pages, and isolation is inherited from the top-level document. The page doing the embedding has to send both headers itself:
+BrowserPod needs `SharedArrayBuffer`, which browsers expose only on cross-origin isolated pages. Isolation is inherited from the top-level document, so the embedding page must send both headers itself:
 
 ```
 Cross-Origin-Opener-Policy: same-origin
 Cross-Origin-Embedder-Policy: require-corp
 ```
 
-and the iframe needs `allow="cross-origin-isolated"`. Without all three the embed loads and then reports that the headers are missing.
+The iframe must carry `allow="cross-origin-isolated"`. Without all three the embed reports that the headers are missing.
 
-Be aware that `require-corp` blocks cross-origin resources that do not opt in, which can break images, fonts, analytics and third-party iframes elsewhere on your page. Deploy `Cross-Origin-Embedder-Policy-Report-Only` first to see what would break, and consider `credentialless` instead, which clears most of it. If you cannot enable these headers at all, open BrowserCode in a new tab instead, which needs nothing from your page.
+`require-corp` blocks cross-origin resources on your page that do not send `Cross-Origin-Resource-Policy` or use CORS.
 
-## Options
+## Parameters
 
 | Parameter   | Value                                                                         |
 | ----------- | ----------------------------------------------------------------------------- |
 | `repo`      | Any GitHub URL or `owner/repo`, optionally `.../tree/<ref>/<dir>`             |
 | `framework` | A template id (`vite`, `react`, `svelte`, `vue`, `nextjs`, `nuxt`, `express`) |
+| `agent`     | A CLI agent id (`claude`, `codex`)                                            |
 | `view`      | Comma separated: `files`, `search`, `editor`, `terminal`, `preview`           |
 
-`view` defaults to every pane. Pass `repo` or `framework`, not both; with neither, the default template boots. Controls that stop making sense are dropped automatically, so a preview-only embed has no hide button and no port badge.
+## Behaviour
+
+- Pass one of `agent`, `repo` or `framework`. With none, the default template boots.
+- `view` defaults to every pane.
+- Agents are terminal first, so `view` only decides whether the preview pane comes with it.
+- One agent session per browser. A second embed of the same agent, or the same agent open in another tab, shows the duplicate session dialog.
+- `codex` asks for an OpenAI API key inside the frame.
+- `claude` opens a new tab for OAuth sign-in.
+- Controls without meaning are omitted: a preview-only embed has no hide button and no port badge.
+
+## Examples
 
 ```
 /embed?repo=https://github.com/user/repo/tree/main/examples/demo
 /embed?framework=vite&view=preview
 /embed?framework=nextjs&view=files,editor,terminal
+/embed?agent=claude
+/embed?agent=codex&view=terminal
 ```
