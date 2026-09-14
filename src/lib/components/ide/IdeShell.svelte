@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy, onMount, tick } from 'svelte';
+	import { onDestroy, onMount, tick, untrack } from 'svelte';
 	import Icon from '@iconify/svelte';
 	import Portal from '$lib/components/Portal.svelte';
 	import EditorPane from '$lib/components/ide/EditorPane.svelte';
@@ -14,6 +14,8 @@
 	import { PortalState } from '$lib/stores/portals.svelte';
 	import { installLeaveGuard } from '$lib/stores/leaveWarning.svelte';
 	import { startDrag } from '$lib/utils/drag';
+	import { podBlocker, type PodBlocker } from '$lib/utils/platform';
+	import { FULL_SHELL, type ShellOptions } from '$lib/ide/shell-options';
 	import { watchIsMobile } from '$lib/utils/viewport';
 	import { bugReportUrl } from '$lib/utils/bug-report';
 	import { trackEvent } from '$lib/utils/useLazyTracking';
@@ -29,7 +31,13 @@
 	};
 
 	// The route picks the project source, so the shell never learns how the project arrived.
-	let { session }: { session: IdeSession } = $props();
+	// `shell` narrows which parts render; the playground omits it and gets the lot.
+	let { session, shell = FULL_SHELL }: { session: IdeSession; shell?: ShellOptions } = $props();
+
+	let hasRail = $derived(shell.fileTree || shell.search || shell.tools);
+	let hasLeftColumn = $derived(shell.editor || shell.terminal);
+	/** Nothing to collapse into when the preview is the only pane. */
+	let collapsiblePreview = $derived(shell.preview && hasLeftColumn);
 
 	// Only the hydrate step differs per source.
 	let bootLines = $derived([
@@ -39,7 +47,7 @@
 		'starting dev server'
 	]);
 
-	let isCompatibleBrowser = $state(true);
+	let blocker = $state<PodBlocker | null>(null);
 	let downloading = $state(false);
 
 	async function handleDownload() {
@@ -54,12 +62,25 @@
 		}
 	}
 
-	let activePanel = $state<'files' | 'search' | null>('files');
+	// Seeded once, deliberately: the route builds `shell` before mount and never swaps it.
+	let activePanel = $state<'files' | 'search' | null>(
+		untrack(() => (shell.fileTree ? 'files' : shell.search ? 'search' : null))
+	);
 	let fileTree = $state<{ startCreate: (kind: 'file' | 'folder') => void } | null>(null);
 
 	// ── Mobile state ──────────────────────────────────────────────────────────
 	let isMobile = $state(false);
-	let activeMobileView = $state<'editor' | 'terminal' | 'preview'>('editor');
+	let activeMobileView = $state<'editor' | 'terminal' | 'preview'>(
+		untrack(() => (shell.editor ? 'editor' : shell.terminal ? 'terminal' : 'preview'))
+	);
+	// One pane needs no tab bar.
+	let mobileTabs = $derived(
+		[
+			{ id: 'editor', label: 'Editor', icon: 'mingcute:code-line', shown: shell.editor },
+			{ id: 'terminal', label: 'Terminal', icon: 'mingcute:terminal-line', shown: shell.terminal },
+			{ id: 'preview', label: 'Preview', icon: 'mingcute:eye-2-line', shown: shell.preview }
+		].filter((tab) => tab.shown)
+	);
 
 	// A source with a declared app port keeps the preview pinned to it; other
 	// ports stay reachable through the toolbar's port menu.
@@ -112,7 +133,9 @@
 		const startLeftW = leftColEl?.clientWidth ?? 0;
 		const startLeftH = leftColEl?.clientHeight ?? 0;
 		// 40px = icon rail width
-		const startTotalW = bodyEl ? bodyEl.clientWidth - 40 - (activePanel ? filePanelWidth : 0) : 1;
+		const startTotalW = bodyEl
+			? bodyEl.clientWidth - (hasRail ? 40 : 0) - (activePanel ? filePanelWidth : 0)
+			: 1;
 
 		startDrag(event, {
 			cursor: which === 'row' ? 'row-resize' : 'col-resize',
@@ -157,11 +180,11 @@
 
 	// ── Boot ──────────────────────────────────────────────────────────────────
 	// Catches tab close/refresh/back-forward while a pod is running here.
-	onMount(() => installLeaveGuard());
+	onMount(() => (shell.leaveGuard ? installLeaveGuard() : undefined));
 
 	onMount(async () => {
-		if (typeof Atomics?.waitAsync !== 'function') {
-			isCompatibleBrowser = false;
+		blocker = podBlocker();
+		if (blocker) {
 			session.loading = false;
 			return;
 		}
@@ -183,23 +206,57 @@
 	});
 </script>
 
-<div class="bc-page-bg flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden text-zinc-300">
-	<!-- ── Top bar ─────────────────────────────────────────────────────────── -->
-	<header
-		class="flex h-10 shrink-0 items-center justify-between border-b border-bc-mist/10 bg-bc-navy px-3"
-	>
-		<div class="flex min-w-0 items-center gap-2 text-[11px] text-white/40">
-			<!-- Switching projects happens by navigating away (sidebar Ide flyout or an /ide/github URL). -->
-			<span class="truncate text-white/60">{session.source.label}</span>
-			{#if session.selectedFile}
-				<span class="text-white/20">/</span>
-				<span class="truncate text-white/60">{session.selectedFile}</span>
-			{/if}
-			{#if session.isSaving}
-				<span class="ml-1 shrink-0 text-bc-mist/70">saving…</span>
-			{/if}
+<div
+	class="bc-page-bg relative flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden text-zinc-300"
+>
+	<!-- Covers the shell, not the preview pane, which an embed may not render. -->
+	{#if blocker}
+		<div
+			class="absolute inset-0 z-50 flex items-center justify-center bg-bc-abyss/80 p-4 backdrop-blur-md"
+		>
+			<div class="glass-panel max-w-85 rounded-xl border border-bc-mist/15 px-6 py-8 text-center">
+				<div
+					class="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-bc-coral/10 text-bc-coral"
+				>
+					<Icon icon="mingcute:alert-line" width="22" height="22" />
+				</div>
+				{#if blocker === 'not-isolated'}
+					<h3 class="mb-2 text-sm font-semibold text-zinc-50">Isolation headers missing</h3>
+					<p class="text-[12px] leading-relaxed text-zinc-400">
+						The page embedding this frame must send
+						<code class="text-zinc-200">Cross-Origin-Opener-Policy: same-origin</code>
+						and
+						<code class="text-zinc-200">Cross-Origin-Embedder-Policy: require-corp</code>, and set
+						<code class="text-zinc-200">allow="cross-origin-isolated"</code> on the iframe.
+					</p>
+				{:else}
+					<h3 class="mb-2 text-sm font-semibold text-zinc-50">Incompatible Browser</h3>
+					<p class="text-[12px] leading-relaxed text-zinc-400">
+						Requires <strong class="text-zinc-200">Atomics.waitAsync</strong> (Chrome, Edge, Safari 16.4+).
+					</p>
+				{/if}
+			</div>
 		</div>
-	</header>
+	{/if}
+
+	<!-- ── Top bar ─────────────────────────────────────────────────────────── -->
+	{#if shell.header}
+		<header
+			class="flex h-10 shrink-0 items-center justify-between border-b border-bc-mist/10 bg-bc-navy px-3"
+		>
+			<div class="flex min-w-0 items-center gap-2 text-[11px] text-white/40">
+				<!-- Switching projects happens by navigating away (sidebar Ide flyout or an /ide/github URL). -->
+				<span class="truncate text-white/60">{session.source.label}</span>
+				{#if session.selectedFile}
+					<span class="text-white/20">/</span>
+					<span class="truncate text-white/60">{session.selectedFile}</span>
+				{/if}
+				{#if session.isSaving}
+					<span class="ml-1 shrink-0 text-bc-mist/70">saving…</span>
+				{/if}
+			</div>
+		</header>
+	{/if}
 
 	<!-- ── Body ────────────────────────────────────────────────────────────── -->
 	<div
@@ -208,54 +265,64 @@
 		bind:this={bodyEl}
 	>
 		<!-- Icon rail: panel navigators anchor to the top, global view toggles to the bottom. -->
-		<aside class="flex w-10 shrink-0 flex-col border-r border-bc-mist/10 bg-bc-navy">
-			<div class="flex flex-col gap-0.5 p-1 pt-2">
-				<button
-					onclick={() => (activePanel = activePanel === 'files' ? null : 'files')}
-					class="flex items-center justify-center rounded p-1.5 transition {activePanel === 'files'
-						? 'bg-bc-azure/15 text-bc-azure'
-						: 'text-zinc-600 hover:bg-white/5 hover:text-zinc-300'}"
-					title="Files"
-				>
-					<Icon icon="mingcute:file-line" width="18" height="18" />
-				</button>
-				<button
-					onclick={() => (activePanel = activePanel === 'search' ? null : 'search')}
-					class="flex items-center justify-center rounded p-1.5 transition {activePanel === 'search'
-						? 'bg-bc-azure/15 text-bc-azure'
-						: 'text-zinc-600 hover:bg-white/5 hover:text-zinc-300'}"
-					title="Search"
-				>
-					<Icon icon="mingcute:search-line" width="18" height="18" />
-				</button>
-			</div>
-			<div class="mt-auto flex flex-col gap-0.5 p-1 pb-2">
-				<SettingsMenu
-					baseClass="flex w-full items-center justify-center rounded p-1.5 transition"
-					activeClass="bg-bc-azure/15 text-bc-azure"
-					idleClass="text-zinc-600 hover:bg-white/5 hover:text-zinc-300"
-				/>
-				<!-- The tracker is an external URL, so resolve() does not apply here. -->
-				<!-- eslint-disable svelte/no-navigation-without-resolve -->
-				<a
-					href={bugReportHref}
-					target="_blank"
-					rel="noopener noreferrer"
-					title="Report a bug"
-					aria-label="Report a bug"
-					onclick={() => trackEvent('Clicked Report Bug', { mode: session.source.id })}
-					class="flex items-center justify-center rounded p-1.5 text-zinc-600 transition hover:bg-bc-coral/10 hover:text-bc-coral"
-				>
-					<Icon icon="mingcute:bug-line" width="18" height="18" />
-				</a>
-				<!-- eslint-enable svelte/no-navigation-without-resolve -->
-				<ZenToggle
-					baseClass="flex items-center justify-center rounded p-1.5 transition"
-					activeClass="bg-bc-azure/15 text-bc-azure"
-					idleClass="text-zinc-600 hover:bg-white/5 hover:text-zinc-300"
-				/>
-			</div>
-		</aside>
+		{#if hasRail}
+			<aside class="flex w-10 shrink-0 flex-col border-r border-bc-mist/10 bg-bc-navy">
+				<div class="flex flex-col gap-0.5 p-1 pt-2">
+					{#if shell.fileTree}
+						<button
+							onclick={() => (activePanel = activePanel === 'files' ? null : 'files')}
+							class="flex items-center justify-center rounded p-1.5 transition {activePanel ===
+							'files'
+								? 'bg-bc-azure/15 text-bc-azure'
+								: 'text-zinc-600 hover:bg-white/5 hover:text-zinc-300'}"
+							title="Files"
+						>
+							<Icon icon="mingcute:file-line" width="18" height="18" />
+						</button>
+					{/if}
+					{#if shell.search}
+						<button
+							onclick={() => (activePanel = activePanel === 'search' ? null : 'search')}
+							class="flex items-center justify-center rounded p-1.5 transition {activePanel ===
+							'search'
+								? 'bg-bc-azure/15 text-bc-azure'
+								: 'text-zinc-600 hover:bg-white/5 hover:text-zinc-300'}"
+							title="Search"
+						>
+							<Icon icon="mingcute:search-line" width="18" height="18" />
+						</button>
+					{/if}
+				</div>
+				{#if shell.tools}
+					<div class="mt-auto flex flex-col gap-0.5 p-1 pb-2">
+						<SettingsMenu
+							baseClass="flex w-full items-center justify-center rounded p-1.5 transition"
+							activeClass="bg-bc-azure/15 text-bc-azure"
+							idleClass="text-zinc-600 hover:bg-white/5 hover:text-zinc-300"
+						/>
+						<!-- The tracker is an external URL, so resolve() does not apply here. -->
+						<!-- eslint-disable svelte/no-navigation-without-resolve -->
+						<a
+							href={bugReportHref}
+							target="_blank"
+							rel="noopener noreferrer"
+							title="Report a bug"
+							aria-label="Report a bug"
+							onclick={() => trackEvent('Clicked Report Bug', { mode: session.source.id })}
+							class="flex items-center justify-center rounded p-1.5 text-zinc-600 transition hover:bg-bc-coral/10 hover:text-bc-coral"
+						>
+							<Icon icon="mingcute:bug-line" width="18" height="18" />
+						</a>
+						<!-- eslint-enable svelte/no-navigation-without-resolve -->
+						<ZenToggle
+							baseClass="flex items-center justify-center rounded p-1.5 transition"
+							activeClass="bg-bc-azure/15 text-bc-azure"
+							idleClass="text-zinc-600 hover:bg-white/5 hover:text-zinc-300"
+						/>
+					</div>
+				{/if}
+			</aside>
+		{/if}
 
 		<!-- Mobile backdrop to dismiss the panel by tapping outside -->
 		{#if isMobile && activePanel}
@@ -349,25 +416,24 @@
 			<!-- Left column: editor + terminal -->
 			<div
 				class="flex h-full min-h-0 flex-col overflow-hidden"
-				class:pane-hidden={isMobile &&
-					activeMobileView !== 'editor' &&
-					activeMobileView !== 'terminal'}
+				class:pane-hidden={!hasLeftColumn ||
+					(isMobile && activeMobileView !== 'editor' && activeMobileView !== 'terminal')}
 				bind:this={leftColEl}
 				style={isMobile
 					? 'width: 100%;'
-					: previewCollapsed
+					: previewCollapsed || !shell.preview
 						? 'flex: 1 1 0; min-width: 0;'
 						: `width: ${leftColFraction * 100}%;`}
 			>
 				<div
-					class:pane-hidden={isMobile && activeMobileView !== 'editor'}
+					class:pane-hidden={!shell.editor || (isMobile && activeMobileView !== 'editor')}
 					style={isMobile ? 'height: 100%; flex-shrink: 0;' : 'flex: 1 1 0; min-height: 0;'}
 				>
 					<EditorPane {session} />
 				</div>
 
 				<!-- Divider: editor / terminal -->
-				{#if !isMobile}
+				{#if !isMobile && shell.editor && shell.terminal}
 					<button
 						type="button"
 						class="divider divider-row"
@@ -379,18 +445,21 @@
 					</button>
 				{/if}
 
+				<!-- Kept mounted when hidden: the boot attaches the pod's terminal to `outputEl`. -->
 				<div
-					class:pane-hidden={isMobile && activeMobileView !== 'terminal'}
+					class:pane-hidden={!shell.terminal || (isMobile && activeMobileView !== 'terminal')}
 					style={isMobile
 						? 'flex: 1 1 0; min-height: 0; height: 100%;'
-						: `flex: 0 0 auto; height: ${(1 - editorFraction) * 100}%; min-height: 0;`}
+						: shell.editor
+							? `flex: 0 0 auto; height: ${(1 - editorFraction) * 100}%; min-height: 0;`
+							: 'flex: 1 1 0; min-height: 0;'}
 				>
 					<TerminalTabs {session} bind:outputEl />
 				</div>
 			</div>
 
 			<!-- Divider: editor column / preview -->
-			{#if !isMobile && isPreviewVisible}
+			{#if !isMobile && isPreviewVisible && collapsiblePreview}
 				<button
 					type="button"
 					class="divider divider-col"
@@ -403,59 +472,41 @@
 			{/if}
 
 			<!-- Right column: preview -->
-			<div
-				class="relative flex min-h-0 min-w-0 flex-col"
-				class:pane-hidden={isMobile && activeMobileView !== 'preview'}
-				class:pointer-events-none={dragging !== null}
-				style={isMobile
-					? 'width: 100%; height: 100%;'
-					: previewCollapsed
-						? 'flex: 0 0 1.75rem;'
-						: 'flex: 1 1 0;'}
-			>
-				{#if previewCollapsed}
-					<button
-						onclick={togglePreview}
-						title="Show preview"
-						aria-label="Show preview"
-						class="flex h-full w-7 shrink-0 flex-col items-center gap-2.5 border-l border-bc-mist/10 bg-bc-navy py-1.5 text-white/40 transition hover:bg-white/5 hover:text-white/80"
-					>
-						<Icon icon="mingcute:left-line" width="13" height="13" />
-						{#if portal.selectedPort !== null}
-							<span
-								class="font-mono text-[10px] tracking-wider tabular-nums [writing-mode:vertical-rl]"
-								>port {portal.selectedPort}</span
-							>
-						{/if}
-					</button>
-				{/if}
-
-				<div class="relative flex min-h-0 flex-1 flex-col" class:pane-hidden={previewCollapsed}>
-					{#if !isCompatibleBrowser}
-						<div
-							class="absolute inset-0 z-50 flex items-center justify-center bg-bc-abyss/80 p-4 backdrop-blur-md"
+			{#if shell.preview}
+				<div
+					class="relative flex min-h-0 min-w-0 flex-col"
+					class:pane-hidden={isMobile && activeMobileView !== 'preview'}
+					class:pointer-events-none={dragging !== null}
+					style={isMobile
+						? 'width: 100%; height: 100%;'
+						: previewCollapsed
+							? 'flex: 0 0 1.75rem;'
+							: 'flex: 1 1 0;'}
+				>
+					{#if previewCollapsed}
+						<button
+							onclick={togglePreview}
+							title="Show preview"
+							aria-label="Show preview"
+							class="flex h-full w-7 shrink-0 flex-col items-center gap-2.5 border-l border-bc-mist/10 bg-bc-navy py-1.5 text-white/40 transition hover:bg-white/5 hover:text-white/80"
 						>
-							<div
-								class="glass-panel max-w-85 rounded-xl border border-bc-mist/15 px-6 py-8 text-center"
-							>
-								<div
-									class="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-bc-coral/10 text-bc-coral"
+							<Icon icon="mingcute:left-line" width="13" height="13" />
+							{#if portal.selectedPort !== null}
+								<span
+									class="font-mono text-[10px] tracking-wider tabular-nums [writing-mode:vertical-rl]"
+									>port {portal.selectedPort}</span
 								>
-									<Icon icon="mingcute:alert-line" width="22" height="22" />
-								</div>
-								<h3 class="mb-2 text-sm font-semibold text-zinc-50">Incompatible Browser</h3>
-								<p class="text-[12px] leading-relaxed text-zinc-400">
-									Requires <strong class="text-zinc-200">Atomics.waitAsync</strong> (Chrome, Edge, Safari
-									16.4+).
-								</p>
-							</div>
-						</div>
-					{:else}
+							{/if}
+						</button>
+					{/if}
+
+					<div class="relative flex min-h-0 flex-1 flex-col" class:pane-hidden={previewCollapsed}>
 						{#if portal.portals.length > 0}
 							<Portal
 								{portal}
 								onBeforeReload={() => session.saveAll()}
-								onCollapse={isMobile ? undefined : togglePreview}
+								onCollapse={isMobile || !collapsiblePreview ? undefined : togglePreview}
+								showPort={hasLeftColumn}
 							/>
 						{/if}
 						<!-- Loader overlays the preview column, then cross-dissolves out into the iframe. -->
@@ -469,42 +520,28 @@
 								/>
 							</div>
 						{/if}
-					{/if}
+					</div>
 				</div>
-			</div>
+			{/if}
 		</div>
 	</div>
 
 	<!-- ── Mobile tab bar ──────────────────────────────────────────────────── -->
-	{#if isMobile}
+	{#if isMobile && mobileTabs.length > 1}
 		<nav
 			class="flex shrink-0 items-stretch border-t border-bc-mist/10 bg-bc-navy"
 			style="height: calc(44px + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom);"
 		>
-			<button
-				onclick={() => (activeMobileView = 'editor')}
-				class="mobile-tab-btn"
-				class:active={activeMobileView === 'editor'}
-			>
-				<Icon icon="mingcute:code-line" width="16" height="16" />
-				<span>Editor</span>
-			</button>
-			<button
-				onclick={() => (activeMobileView = 'terminal')}
-				class="mobile-tab-btn"
-				class:active={activeMobileView === 'terminal'}
-			>
-				<Icon icon="mingcute:terminal-line" width="16" height="16" />
-				<span>Terminal</span>
-			</button>
-			<button
-				onclick={() => (activeMobileView = 'preview')}
-				class="mobile-tab-btn"
-				class:active={activeMobileView === 'preview'}
-			>
-				<Icon icon="mingcute:eye-2-line" width="16" height="16" />
-				<span>Preview</span>
-			</button>
+			{#each mobileTabs as tab (tab.id)}
+				<button
+					onclick={() => (activeMobileView = tab.id as 'editor' | 'terminal' | 'preview')}
+					class="mobile-tab-btn"
+					class:active={activeMobileView === tab.id}
+				>
+					<Icon icon={tab.icon} width="16" height="16" />
+					<span>{tab.label}</span>
+				</button>
+			{/each}
 		</nav>
 	{/if}
 </div>

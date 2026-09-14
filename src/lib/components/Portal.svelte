@@ -10,9 +10,11 @@
 		onBeforeReload?: () => Promise<void>;
 		/** Collapses the pane; omitted by hosts with nowhere to collapse to. */
 		onCollapse?: () => void;
+		/** Which server the frame shows. A lone preview has nothing to choose between. */
+		showPort?: boolean;
 	};
 
-	let { portal, onBeforeReload, onCollapse }: Props = $props();
+	let { portal, onBeforeReload, onCollapse, showPort = true }: Props = $props();
 
 	/** Matches the sweep animation below. */
 	const SWEEP_MS = 620;
@@ -112,7 +114,7 @@
 				<span class="tool-sep"></span>
 			{/if}
 
-			{#if portal.url}
+			{#if portal.url && showPort}
 				<div class="relative">
 					<button
 						onclick={portal.togglePorts}
