@@ -36,18 +36,25 @@
 	<IdeShell session={ideSession} shell={options.shell} />
 {:else}
 	<div class="bc-page-bg flex h-full w-full items-center justify-center p-4 text-zinc-300">
-		<div class="glass-panel max-w-md rounded-xl border border-bc-mist/15 px-6 py-8 text-center">
+		<div
+			class="glass-panel w-full max-w-md rounded-xl border border-bc-mist/15 px-6 py-8 text-center"
+		>
 			<div
 				class="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-bc-coral/10 text-bc-coral"
 			>
 				<Icon icon="mingcute:alert-line" width="22" height="22" />
 			</div>
-			<h3 class="mb-2 text-sm font-semibold text-zinc-50">Nothing to boot</h3>
-			<p class="text-[12px] leading-relaxed text-zinc-400">
-				Pass <code class="text-zinc-200">?repo=&lt;github url&gt;</code>,
-				<code class="text-zinc-200">?framework=&lt;id&gt;</code> or
-				<code class="text-zinc-200">?agent=&lt;id&gt;</code>, optionally with
-				<code class="text-zinc-200">&amp;view=files,editor,terminal,preview</code>.
+			<h3 class="mb-3 text-sm font-semibold text-zinc-50">Nothing to boot</h3>
+			<p class="text-[12px] leading-relaxed text-zinc-400">Pass one of</p>
+			<ul class="mt-2 space-y-1 text-left text-[12px] text-zinc-200">
+				<li><code class="break-all">?repo=&lt;github url&gt;</code></li>
+				<li><code class="break-all">?framework=&lt;id&gt;</code></li>
+				<li><code class="break-all">?agent=&lt;id&gt;</code></li>
+			</ul>
+			<p class="mt-3 text-[12px] leading-relaxed text-zinc-400">
+				optionally with <code class="break-all text-zinc-200"
+					>&amp;view=files,editor,terminal,preview</code
+				>.
 			</p>
 		</div>
 	</div>
