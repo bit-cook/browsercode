@@ -25,6 +25,7 @@
 - [What is BrowserCode?](#about)
 - [Quickstart](#quickstart)
 - [Make it your own](#make-it-your-own)
+- [Embedding](#embedding)
 - [Breaking BrowserCode](#breaking-browsercode)
 - [Roadmap](#roadmap)
 
@@ -87,6 +88,22 @@ Other useful scripts:
 - `npm run lint` / `npm run format` — lint and format with Prettier + ESLint
 
 CLI availability and behavior are configured in [`src/lib/config/tools.ts`](src/lib/config/tools.ts) — this is the place to start if you want to add or tweak a CLI.
+
+<h2 id="embedding">Embedding</h2>
+
+BrowserCode can run inside another site's page through `/embed`, composed entirely from the query string.
+
+```html
+<iframe
+	src="https://browsercode.io/embed?framework=vite&view=preview"
+	allow="cross-origin-isolated"
+	style="width: 100%; height: 600px; border: 0"
+></iframe>
+```
+
+BrowserPod needs `SharedArrayBuffer`, so the embedding page must send `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`, and the iframe must carry `allow="cross-origin-isolated"`.
+
+Parameters, panes and further detail are in [`docs/embedding.md`](docs/embedding.md).
 
 <h2 id="breaking-browsercode">Breaking BrowserCode</h2>
 
