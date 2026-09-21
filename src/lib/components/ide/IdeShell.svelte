@@ -15,6 +15,7 @@
 	import { installLeaveGuard } from '$lib/stores/leaveWarning.svelte';
 	import { startDrag } from '$lib/utils/drag';
 	import { podBlocker, type PodBlocker } from '$lib/utils/platform';
+	import PodBlockerOverlay from '$lib/components/PodBlockerOverlay.svelte';
 	import { FULL_SHELL, type ShellOptions } from '$lib/ide/shell-options';
 	import { watchIsMobile } from '$lib/utils/viewport';
 	import { bugReportUrl } from '$lib/utils/bug-report';
@@ -211,32 +212,7 @@
 >
 	<!-- Covers the shell, not the preview pane, which an embed may not render. -->
 	{#if blocker}
-		<div
-			class="absolute inset-0 z-50 flex items-center justify-center bg-bc-abyss/80 p-4 backdrop-blur-md"
-		>
-			<div class="glass-panel max-w-85 rounded-xl border border-bc-mist/15 px-6 py-8 text-center">
-				<div
-					class="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-bc-coral/10 text-bc-coral"
-				>
-					<Icon icon="mingcute:alert-line" width="22" height="22" />
-				</div>
-				{#if blocker === 'not-isolated'}
-					<h3 class="mb-2 text-sm font-semibold text-zinc-50">Isolation headers missing</h3>
-					<p class="text-[12px] leading-relaxed text-zinc-400">
-						The page embedding this frame must send
-						<code class="text-zinc-200">Cross-Origin-Opener-Policy: same-origin</code>
-						and
-						<code class="text-zinc-200">Cross-Origin-Embedder-Policy: require-corp</code>, and set
-						<code class="text-zinc-200">allow="cross-origin-isolated"</code> on the iframe.
-					</p>
-				{:else}
-					<h3 class="mb-2 text-sm font-semibold text-zinc-50">Incompatible Browser</h3>
-					<p class="text-[12px] leading-relaxed text-zinc-400">
-						Requires <strong class="text-zinc-200">Atomics.waitAsync</strong> (Chrome, Edge, Safari 16.4+).
-					</p>
-				{/if}
-			</div>
-		</div>
+		<PodBlockerOverlay {blocker} />
 	{/if}
 
 	<!-- ── Top bar ─────────────────────────────────────────────────────────── -->

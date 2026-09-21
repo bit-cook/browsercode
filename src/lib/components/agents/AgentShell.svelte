@@ -9,6 +9,8 @@
 	import { PortalState } from '$lib/stores/portals.svelte';
 	import { zenState } from '$lib/stores/zen.svelte';
 	import { startDrag } from '$lib/utils/drag';
+	import { podBlocker, type PodBlocker } from '$lib/utils/platform';
+	import PodBlockerOverlay from '$lib/components/PodBlockerOverlay.svelte';
 	import { FULL_SHELL, type ShellOptions } from '$lib/ide/shell-options';
 	import { watchIsMobile } from '$lib/utils/viewport';
 	import CredentialGateOverlay from './CredentialGateOverlay.svelte';
@@ -26,6 +28,8 @@
 	let isPortalVisible = $state(true);
 	let portalFraction = $state(0.5);
 	let isDragging = $state(false);
+
+	let blocker = $state<PodBlocker | null>(null);
 
 	let isMobile = $state(false);
 	let activeMobileView = $state<'terminal' | 'preview'>('terminal');
@@ -75,8 +79,12 @@
 	onMount(() => {
 		const unwatchIsMobile = watchIsMobile((mobile) => (isMobile = mobile));
 
-		if (consoleEl) session.boot(consoleEl, portal.apply);
-		else console.error('Terminal container is not ready yet');
+		// Booting without SharedArrayBuffer fails deep inside the pod, leaving a blank terminal.
+		blocker = podBlocker();
+		if (!blocker) {
+			if (consoleEl) session.boot(consoleEl, portal.apply);
+			else console.error('Terminal container is not ready yet');
+		}
 
 		return () => {
 			// Never leave the global chrome hidden after navigating away from an agent session.
@@ -91,6 +99,10 @@
 <svelte:window onkeydown={dismissTerminalTip} />
 
 <div class="relative min-h-0 flex-1 overflow-hidden" bind:this={containerEl}>
+	{#if blocker}
+		<PodBlockerOverlay {blocker} />
+	{/if}
+
 	<!-- Hidden, never unmounted: the pod attaches its terminal to this div for the session's life. -->
 	<div class="absolute inset-0 bg-black" class:hidden={isMobile && activeMobileView !== 'terminal'}>
 		<Terminal bind:consoleEl />
