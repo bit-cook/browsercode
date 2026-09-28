@@ -19,9 +19,13 @@
 	// flyouts) the rest of the time.
 	let ribbonAboveTour = $derived(stepperState.open && stepperState.step === 6);
 
+	// Embeds render inside a host page, where none of the app chrome belongs.
+	let isEmbed = $derived($page.route.id?.startsWith('/embed') ?? false);
+
 	// Show on the landing surfaces (Home, /agents, bare /ide) and during tour step 6.
 	let showRibbon = $derived(
 		!zenState.on &&
+			!isEmbed &&
 			(ribbonAboveTour ||
 				$page.route.id === '/' ||
 				$page.route.id === '/agents' ||
@@ -85,9 +89,11 @@
 <div class="flex h-dvh w-screen overflow-hidden">
 	<!-- Mounted everywhere: it only auto-opens on a first-ever visit to Home, but the sidebar's
 	     Help flyout and the Home page both need to trigger it from anywhere via stepperState. -->
-	<Stepper />
-	<LeaveWarningModal />
-	{#if !zenState.on}
+	{#if !isEmbed}
+		<Stepper />
+		<LeaveWarningModal />
+	{/if}
+	{#if !zenState.on && !isEmbed}
 		<Sidebar />
 	{/if}
 
@@ -121,7 +127,7 @@
 			</main>
 		</div>
 
-		{#if !zenState.on}
+		{#if !zenState.on && !isEmbed}
 			<UtilityBar />
 		{/if}
 	</div>

@@ -13,7 +13,7 @@
 		credential: CredentialSpec;
 		/** Nothing stored yet, so the prompt comes right after this card. */
 		willAskForCredential: boolean;
-		onCancel: () => void;
+		onCancel?: () => void;
 	} = $props();
 
 	/** The bare host reads better as link text than the full URL. */
@@ -72,12 +72,14 @@
 
 	<div class="mt-5.5 flex items-center justify-between">
 		<span class="text-xs text-white/28 tabular-nums">{elapsed.toFixed(1)}s elapsed</span>
-		<button
-			onclick={onCancel}
-			class="rounded-md bg-white/5 px-4.5 py-2 text-[13px] font-medium text-zinc-300 transition hover:bg-white/10"
-		>
-			Cancel
-		</button>
+		{#if onCancel}
+			<button
+				onclick={onCancel}
+				class="rounded-md bg-white/5 px-4.5 py-2 text-[13px] font-medium text-zinc-300 transition hover:bg-white/10"
+			>
+				Cancel
+			</button>
+		{/if}
 	</div>
 </div>
 

@@ -33,7 +33,10 @@ export class AgentSession {
 	private releaseLock: () => void = () => {};
 	private disposeLeaveGuard: () => void = () => {};
 
-	constructor(requestedTool: string | undefined) {
+	private readonly leaveGuard: boolean;
+
+	constructor(requestedTool: string | undefined, options: { leaveGuard?: boolean } = {}) {
+		this.leaveGuard = options.leaveGuard ?? true;
 		this.id = resolveToolId(requestedTool);
 		// resolveToolId only ever returns an id that is in toolItems, so this always resolves.
 		this.tool = toolItems.find((item) => item.id === this.id)!;
@@ -58,7 +61,7 @@ export class AgentSession {
 		this.lock = 'held';
 
 		// Only warn on tab close/refresh/back-button once there is work here to lose.
-		this.disposeLeaveGuard = installLeaveGuard();
+		if (this.leaveGuard) this.disposeLeaveGuard = installLeaveGuard();
 
 		// Covers pod boot, the image streaming in, and any warm-up probe.
 		this.gate?.begin();
