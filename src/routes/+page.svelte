@@ -2,7 +2,6 @@
 	import Icon from '@iconify/svelte';
 	import favicon from '$lib/assets/favicon.svg';
 	import browserpodLogo from '$lib/assets/browserpod.svg';
-	import WavyGridBackground from '$lib/components/WavyGridBackground.svelte';
 
 	function goAgents() {
 		window.location.href = '/agents';
@@ -53,7 +52,7 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="relative h-full w-full overflow-hidden bg-bc-abyss text-zinc-300" use:wheelControl>
+<div class="bc-page-bg relative h-full w-full overflow-hidden text-zinc-300" use:wheelControl>
 	<!-- ── Section 1: hero — fills the viewport; scales/dims when the About panel opens ── -->
 	<section
 		class="absolute inset-0 flex flex-col items-center justify-center overflow-hidden px-6 py-16 text-center"
@@ -61,16 +60,7 @@
 			? 'scale(0.94)'
 			: 'scale(1)'}; filter: {panelOpen ? 'brightness(0.72)' : 'brightness(1)'};"
 	>
-		<!-- The About panel covers the hero, so the wave is imperceptible while it is open. -->
-		<WavyGridBackground paused={panelOpen} />
-
-		<!-- vignette to keep text legible over the grid -->
-		<div
-			class="pointer-events-none absolute inset-0 z-[1]"
-			style="background: radial-gradient(closest-side at 50% 46%, rgba(2,9,20,0.55), rgba(2,9,20,0) 78%);"
-		></div>
-
-		<div class="relative z-[2] flex flex-col items-center">
+		<div class="flex flex-col items-center">
 			<img src={favicon} alt="BrowserCode" class="mb-6 h-14 w-14" />
 
 			<h1
@@ -143,7 +133,7 @@
 
 		<button
 			onclick={openPanel}
-			class="absolute bottom-6 left-1/2 z-[2] flex -translate-x-1/2 flex-col items-center gap-1.5 text-[11.5px] text-white/30 transition-colors duration-150 hover:text-white/60"
+			class="absolute bottom-6 left-1/2 flex -translate-x-1/2 flex-col items-center gap-1.5 text-[11.5px] text-white/30 transition-colors duration-150 hover:text-white/60"
 		>
 			Learn more
 			<Icon icon="mingcute:down-line" width="16" height="16" class="animate-bounce" />
